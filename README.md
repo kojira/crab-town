@@ -39,7 +39,7 @@ opencrab から独立した「2D空間 gateway」。エージェントが部屋�
 ### 構成
 - `internal/world` : World の状態（メモリ保持）、移動（BFS・1tick 1タイル）、境界・壁・家具ブロック、interact、権限、ゾーン可視性フィルタ（`zone.go`）、使用中プライバシー（`occupancy.go`）、間取り（`layout.go`）
 - `internal/server` : HTTP API / WebSocket / webhook 転送 / トークン認証（`auth.go`）
-- `web/` : Canvas ビューア（ビルドツールなし、バイナリに embed）。`furniture.js` 家具ドット絵 / `floor.js` 床・壁・ドア / `props.js` 小物・水回り・使用中ランプ / `render.js` 描画 / `ws.js` 受信
+- `web/` : Canvas ビューア（ビルドツールなし、バイナリに embed）。`furniture.js` 家具ドット絵 / `floor.js` 床・壁・ドア / `props.js` 小物・水回り・使用中ランプ / `town.js` らぼみの家・庭のドット絵、らぼみのスプライト、家ごとの暗幕 / `render.js` 描画 / `ws.js` 受信
 - `cmd/crab-town` : 起動コマンド
 
 町: 部屋 `town`（58x20）1枚に家が2軒と庭。壁（通行不可）とドア（通行可）で仕切られ、BFS は壁を回り込んでドアを通る。

@@ -84,6 +84,10 @@ Object.assign(FURNITURE, {
   vanity(d, W) {
     d(0, 0, W, 4, "#bfe0ea"); d(1, 1, W - 2, 2, "#e0f4fa");  // mirror
     d(0, 4, W, 12, WHITE); d(0, 15, W, 1, PORC_D);
+    if (W < 32) { // 1-tile vanity: basin only, everything stays inside the tile
+      d(2, 6, 12, 7, PORC); d(3, 7, 10, 5, "#b8dce8"); d(7, 4, 2, 4, CHROME); d(7, 9, 2, 1, "#555");
+      return;
+    }
     d(6, 6, 16, 7, PORC); d(8, 7, 12, 5, "#b8dce8"); d(13, 4, 2, 4, CHROME); d(13, 9, 2, 1, "#555");
     d(25, 7, 4, 5, "#4aa3c8"); d(26, 4, 1, 4, "#e04040"); d(27, 4, 1, 4, "#40c070"); // cup, brushes
   },
