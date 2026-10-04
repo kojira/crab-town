@@ -31,3 +31,74 @@ opencrab から独立した「2D空間 gateway」。エージェントが部屋�
 3. ハートビートでのすたろうが窓まで歩く
 
 次段: らぼみちゃんの家、街（家の外へ出る）
+
+---
+
+## MVP 実装（Go）
+
+### 構成
+- `internal/world` : World の状態（メモリ保持）、移動（BFS・1tick 1タイル）、境界・家具ブロック、interact、権限
+- `internal/server` : HTTP API / WebSocket / webhook 転送
+- `web/index.html` : Canvas ビューア（ビルドツールなし、バイナリに embed）
+- `cmd/crab-town` : 起動コマンド
+
+部屋: `nostarou-room`（16x12、owner = `nostarou`）
+
+| 家具 id | 位置 | 機能 | 使用中の状態 |
+|---|---|---|---|
+| `window` 窓 | (7,0) | timeline | talking |
+| `pc` PC | (14,5) | work-container | working |
+| `bed` ベッド | (1,10) | standby | away |
+
+家具タイルは通行不可。interact するとアクターは家具の前まで歩き、到着した時点で `interact` イベントが発生する。
+
+### 起動
+```sh
+go run ./cmd/crab-town
+# ブラウザで http://127.0.0.1:8787/ を開く
+```
+
+環境変数:
+- `CRAB_ADDR` : listen アドレス（既定 `127.0.0.1:8787`）
+- `CRAB_WEBHOOK_URL` : `interact` / `knock` イベントを JSON で POST する先（未設定なら送らない）
+- `CRAB_TICK` : 歩行の 1 ステップ間隔（既定 `250ms`）
+
+### API
+操作系は `X-Crab-Id` ヘッダで呼び出し元を示す。move / interact は部屋の持ち主か招待者のみ（それ以外は 403）。knock は id があれば誰でも可。
+**MVP では `X-Crab-Id` は識別のみで認証ではない。** 外部公開しないこと。
+
+```sh
+# 窓まで歩いて使う（デモ）
+curl -X POST localhost:8787/actor/interact -H 'X-Crab-Id: nostarou' \
+  -d '{"actor":"nostarou","furniture":"window"}'
+
+# 指定タイルへ移動
+curl -X POST localhost:8787/actor/move -H 'X-Crab-Id: nostarou' \
+  -d '{"actor":"nostarou","x":3,"y":4}'
+
+# ノック
+curl -X POST localhost:8787/actor/knock -H 'X-Crab-Id: labomi' \
+  -d '{"room":"nostarou-room","message":"あそぼ"}'
+```
+
+レスポンス: 成功 `{"ok":true}` / 失敗 `{"ok":false,"error":"..."}`（400 範囲外・通行不可・不正JSON、403 権限なし、404 存在しない actor / room / furniture）
+
+`WS /world`（読み取り専用。クライアントからの送信は破棄される）:
+1. 接続直後に `{"type":"snapshot","rooms":[...],"actors":[...]}`
+2. 以降は差分イベント
+   - `{"type":"actor","actor":{"id","pos","state","using","target"},...}` 位置・状態の変化
+   - `{"type":"interact","actor":{...},"furniture":{...},"by":"..."}` 家具の使用開始
+   - `{"type":"knock","room":"...","by":"...","message":"..."}`
+
+webhook には `interact` と `knock` イベントが同じ JSON 形式で送られる。
+
+### テスト
+```sh
+go test ./...
+```
+
+### 未対応（次段）
+- 認証（`X-Crab-Id` は自己申告）
+- 可視性 owner / invited の閲覧制限（現状 WS は全員に全状態を配信）
+- ハートビート連携（現状デモは interact API を叩いて発火）
+- 本棚・ポスト、複数の家、街、永続化

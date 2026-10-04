@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>crab-town</title>
+<style>
+  body { background:#1b1d23; color:#ddd; font-family:system-ui,sans-serif; margin:20px; }
+  canvas { image-rendering:pixelated; border:2px solid #444; display:block; }
+  #status { margin-top:8px; font-size:14px; }
+  #log { margin-top:8px; font:12px monospace; color:#9a9; max-height:160px; overflow:auto; white-space:pre; }
+</style>
+</head>
+<body>
+<h1>⚡ crab-town</h1>
+<canvas id="c" width="512" height="384"></canvas>
+<div id="status">connecting...</div>
+<div id="log"></div>
+<script>
+const T = 32;
+const cv = document.getElementById("c"), ctx = cv.getContext("2d");
+const statusEl = document.getElementById("status"), logEl = document.getElementById("log");
+let rooms = {}, actors = {};
+
+const colors = { window:"#7ec8ff", pc:"#9be37b", bed:"#e39bd2" };
+const stateColor = { idle:"#ffd84a", working:"#9be37b", talking:"#7ec8ff", away:"#888" };
+
+function log(s) {
+  logEl.textContent = (new Date().toLocaleTimeString() + " " + s + "\n" + logEl.textContent).slice(0, 4000);
+}
+
+function draw() {
+  const room = Object.values(rooms)[0];
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  if (!room) return;
+  for (let y = 0; y < room.height; y++) for (let x = 0; x < room.width; x++) {
+    ctx.fillStyle = (x + y) % 2 ? "#3a3227" : "#433a2d";
+    ctx.fillRect(x*T, y*T, T, T);
+  }
+  for (const f of room.furniture) {
+    ctx.fillStyle = colors[f.kind] || "#ccc";
+    ctx.fillRect(f.pos.x*T+2, f.pos.y*T+2, T-4, T-4);
+    ctx.fillStyle = "#111"; ctx.font = "11px sans-serif"; ctx.textAlign = "center";
+    ctx.fillText(f.label, f.pos.x*T+T/2, f.pos.y*T+T/2+4);
+  }
+  for (const a of Object.values(actors)) {
+    if (a.room !== room.id) continue;
+    if (a.target) {
+      ctx.strokeStyle = "#ffffff55";
+      ctx.strokeRect(a.target.x*T+4, a.target.y*T+4, T-8, T-8);
+    }
+    const cx = a.pos.x*T+T/2, cy = a.pos.y*T+T/2;
+    ctx.fillStyle = "#e0573b";
+    ctx.beginPath(); ctx.arc(cx, cy, T/2-4, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = stateColor[a.state] || "#fff";
+    ctx.beginPath(); ctx.arc(cx, cy-T/2+4, 4, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "#fff"; ctx.font = "11px sans-serif"; ctx.textAlign = "center";
+    ctx.fillText(a.name, cx, cy+T/2+8);
+  }
+  statusEl.textContent = Object.values(actors)
+    .map(a => `${a.name}: ${a.state}${a.using ? " ("+a.using+")" : ""} @ ${a.pos.x},${a.pos.y}`).join(" / ");
+}
+
+function connect() {
+  const ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/world");
+  ws.onmessage = (m) => {
+    const ev = JSON.parse(m.data);
+    if (ev.type === "snapshot") {
+      rooms = {}; actors = {};
+      for (const r of ev.rooms) rooms[r.id] = r;
+      for (const a of ev.actors) actors[a.id] = a;
+      log("snapshot");
+    } else if (ev.type === "actor" && ev.actor) {
+      actors[ev.actor.id] = ev.actor;
+    } else if (ev.type === "interact") {
+      log(`interact: ${ev.actor.name} -> ${ev.furniture.label} (${ev.furniture.function})`);
+    } else if (ev.type === "knock") {
+      log(`knock: ${ev.by} @ ${ev.room} ${ev.message || ""}`);
+    }
+    draw();
+  };
+  ws.onclose = () => { statusEl.textContent = "disconnected, retrying..."; setTimeout(connect, 2000); };
+}
+connect();
+</script>
+</body>
+</html>
