@@ -73,7 +73,7 @@ func TestWebhookOnInteract(t *testing.T) {
 	defer ts.Close()
 
 	post(t, ts.URL+"/actor/interact", "nostarou", `{"actor":"nostarou","furniture":"bed"}`)
-	for i := 0; i < 30; i++ {
+	for i := 0; i < 100; i++ {
 		w.Step()
 	}
 	select {
@@ -105,21 +105,88 @@ func TestWSSnapshotAndEvents(t *testing.T) {
 	}
 	var snap world.Snapshot
 	json.Unmarshal(b, &snap)
-	if snap.Type != "snapshot" || len(snap.Rooms) != 1 || len(snap.Rooms[0].Furniture) != 3 {
+	if snap.Type != "snapshot" || len(snap.Rooms) != 1 || len(snap.Rooms[0].Zones) != 9 || len(snap.Rooms[0].Furniture) == 0 {
 		t.Fatalf("bad snapshot: %s", b)
 	}
 
 	// viewer writes are ignored (read-only)
 	c.Write(ctx, websocket.MessageText, []byte(`{"actor":"nostarou","x":0,"y":0}`))
 
-	post(t, ts.URL+"/actor/move", "nostarou", `{"actor":"nostarou","x":7,"y":5}`)
+	post(t, ts.URL+"/actor/move", "nostarou", `{"actor":"nostarou","x":22,"y":5}`)
 	_, b, err = c.Read(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	var ev world.Event
 	json.Unmarshal(b, &ev)
-	if ev.Type != "actor" || ev.Actor == nil || ev.Actor.Target == nil || *ev.Actor.Target != (world.Pos{X: 7, Y: 5}) {
+	if ev.Type != "actor" || ev.Actor == nil || ev.Actor.Target == nil || *ev.Actor.Target != (world.Pos{X: 22, Y: 5}) {
 		t.Fatalf("unexpected event: %s", b)
+	}
+}
+
+// readSnap dials /world?viewer=... and returns the actor from the snapshot.
+func readSnapActor(t *testing.T, base, viewer string) world.Actor {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	c, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(base, "http")+"/world?"+ViewerParam+"="+viewer, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.CloseNow()
+	_, b, err := c.Read(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var snap world.Snapshot
+	json.Unmarshal(b, &snap)
+	if len(snap.Actors) != 1 {
+		t.Fatalf("bad snapshot: %s", b)
+	}
+	return *snap.Actors[0]
+}
+
+// WS output is filtered per viewer: in bed (owner-only bedroom) the public sees
+// only a hidden actor, the owner sees the real position.
+func TestWSFiltersPrivateZones(t *testing.T) {
+	w := world.NewDefault()
+	ts := httptest.NewServer(New(w, "", nil).Handler())
+	defer ts.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	pub, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(ts.URL, "http")+"/world", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pub.CloseNow()
+	pub.Read(ctx) // snapshot
+
+	post(t, ts.URL+"/actor/interact", "nostarou", `{"actor":"nostarou","furniture":"bed"}`)
+	for i := 0; i < 100; i++ {
+		w.Step()
+	}
+	if a, _ := w.Actor("nostarou"); a.Using != "bed" {
+		t.Fatalf("did not reach bed: %+v", a)
+	}
+	// drain the public stream: no message may reveal a bedroom tile or the bed
+	for {
+		rctx, rc := context.WithTimeout(ctx, 200*time.Millisecond)
+		_, b, err := pub.Read(rctx)
+		rc()
+		if err != nil {
+			break
+		}
+		var ev world.Event
+		json.Unmarshal(b, &ev)
+		if ev.Type == "interact" || (ev.Actor != nil && !ev.Actor.Hidden && ev.Actor.Pos.Y >= 12) {
+			t.Fatalf("public stream leaked: %s", b)
+		}
+	}
+	if a := readSnapActor(t, ts.URL, ""); !a.Hidden || a.Using != "" || a.Pos != (world.Pos{}) {
+		t.Fatalf("anonymous snapshot leaked: %+v", a)
+	}
+	if a := readSnapActor(t, ts.URL, "nostarou"); a.Hidden || a.Using != "bed" {
+		t.Fatalf("owner snapshot wrong: %+v", a)
 	}
 }

@@ -37,20 +37,39 @@ opencrab から独立した「2D空間 gateway」。エージェントが部屋�
 ## MVP 実装（Go）
 
 ### 構成
-- `internal/world` : World の状態（メモリ保持）、移動（BFS・1tick 1タイル）、境界・家具ブロック、interact、権限
+- `internal/world` : World の状態（メモリ保持）、移動（BFS・1tick 1タイル）、境界・壁・家具ブロック、interact、権限、ゾーン可視性フィルタ（`zone.go`）、間取り（`layout.go`）
 - `internal/server` : HTTP API / WebSocket / webhook 転送
-- `web/index.html` : Canvas ビューア（ビルドツールなし、バイナリに embed）
+- `web/` : Canvas ビューア（ビルドツールなし、バイナリに embed）。`furniture.js` 家具ドット絵 / `floor.js` 床・壁・ドア / `render.js` 描画 / `ws.js` 受信
 - `cmd/crab-town` : 起動コマンド
 
-部屋: `nostarou-room`（16x12、owner = `nostarou`）
+部屋: `nostarou-room`（32x20 の 4LDK、owner = `nostarou`）。壁（通行不可）とドア（通行可）で仕切られ、BFS は壁を回り込んでドアを通る。
 
-| 家具 id | 位置 | 機能 | 使用中の状態 |
+| ゾーン | 床 | 可視性 | 主な家具 |
 |---|---|---|---|
-| `window` 窓 | (7,0) | timeline | talking |
-| `pc` PC | (14,5) | work-container | working |
-| `bed` ベッド | (1,10) | standby | away |
+| 玄関 `entrance` | 石 | public | 下駄箱（玄関ドアは外壁左） |
+| キッチン `kitchen` | タイル | public | キッチン台・コンロ・冷蔵庫（飾り） |
+| ダイニング `dining` | 木 | public | テーブル＋椅子4脚（飾り） |
+| リビング `living` | 木＋ラグ | public | 窓・ソファ・ローテーブル |
+| 廊下 `hallway` | 木 | public | — |
+| 寝室 `bedroom` | カーペット | owner | ベッド（away 時の待機場所）・ナイトテーブル・クローゼット |
+| 書斎 `study` | 濃い木 | owner | 本棚・PC |
+| 趣味部屋 `hobby` | 畳風マット | invited | テレビとゲーム機・アニメ棚・ビーズクッション |
+| ゲストルーム `guest` | 水色カーペット | invited | 来客用ベッド |
 
-家具タイルは通行不可。interact するとアクターは家具の前まで歩き、到着した時点で `interact` イベントが発生する。
+| 家具 id | 位置 / サイズ | 機能 | 使用中の状態 |
+|---|---|---|---|
+| `window` 窓 | (24,0) 4x1 | timeline | talking |
+| `sofa` ソファ | (24,6) 4x2 | visitors | talking |
+| `pc` PC | (13,13) 2x1 | work-container | working |
+| `bookshelf` 本棚 | (9,13) 3x2 | memory | working |
+| `bed` ベッド | (1,14) 2x3 | standby | away |
+
+家具は `size` 分のタイルを占有し、すべて通行不可。`function` が空の家具は飾り（interact すると 400）。interact するとアクターは家具の前まで歩き、到着した時点で `interact` イベントが発生する。
+
+#### ゾーンの可視性
+`public` = 誰でも / `invited` = 持ち主＋招待者 / `owner` = 持ち主のみ（不明な値は owner 扱い）。
+`WS /world?viewer=<id>` の閲覧者 id で配信をフィルタする（`X-Crab-Id` と同じく識別のみで認証ではない）。ビューアはページ URL の `?viewer=` をそのまま渡す。
+見えないゾーン（とそのドア）にいるアクターは `{"hidden":true,"state":"hidden"}` に伏せられ位置・使用家具が消える。そこでの `interact` イベントは届かない。見えるゾーンを歩いていても目的地が見えないゾーンなら `target` は伏せる。snapshot の `hidden_zones` に見えないゾーン id が入り、ビューアは曇りガラス＋錠前で覆う。
 
 ### 起動
 ```sh
@@ -99,6 +118,6 @@ go test ./...
 
 ### 未対応（次段）
 - 認証（`X-Crab-Id` は自己申告）
-- 可視性 owner / invited の閲覧制限（現状 WS は全員に全状態を配信）
+- 閲覧者の認証（`?viewer=` は自己申告）。家具の配置自体は全員に見える
 - ハートビート連携（現状デモは interact API を叩いて発火）
-- 本棚・ポスト、複数の家、街、永続化
+- ポスト、複数の家、街、永続化

@@ -27,11 +27,12 @@ function fitFont(text, maxW, maxPx, minPx) {
 // Shown only as a hover tooltip, placed above/below the tile and clamped to the canvas.
 let hover = null; // furniture under the mouse
 function drawTooltip(f) {
-  const px = fitFont(f.label, T * 4, 11, 8);
+  const s = furnitureSize(f);
+  const px = fitFont(f.label, T * 5, 13, 9);
   const w = Math.ceil(ctx.measureText(f.label).width) + 8, h = px + 6;
-  const x = Math.max(0, Math.min(cv.width - w, Math.round(f.pos.x * T + T / 2 - w / 2)));
-  let y = f.pos.y * T - h - 2;              // above the tile
-  if (y < 0) y = f.pos.y * T + T + 2;       // no room above: below the tile
+  const x = Math.max(0, Math.min(cv.width - w, Math.round(f.pos.x * T + s.w * T / 2 - w / 2)));
+  let y = f.pos.y * T - h - 2;                 // above the piece
+  if (y < 0) y = (f.pos.y + s.h) * T + 2;      // no room above: below it
   y = Math.max(0, Math.min(cv.height - h, y));
   ctx.fillStyle = "rgba(10,10,14,0.85)"; ctx.fillRect(x, y, w, h);
   ctx.strokeStyle = "#ffd84a"; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
@@ -44,7 +45,7 @@ cv.addEventListener("mousemove", (e) => {
   const tx = Math.floor((e.clientX - r.left) * cv.width / r.width / T);
   const ty = Math.floor((e.clientY - r.top) * cv.height / r.height / T);
   const room = Object.values(rooms)[0];
-  hover = room ? room.furniture.find(f => f.pos.x === tx && f.pos.y === ty) || null : null;
+  hover = room ? room.furniture.find(f => occupies(f, tx, ty)) || null : null;
   cv.style.cursor = hover ? "help" : "default";
 });
 cv.addEventListener("mouseleave", () => { hover = null; });
@@ -79,24 +80,6 @@ function drawStateIcon(state, x0, y0) {
 }
 
 // ---- drawing ----------------------------------------------------------------
-function drawFloor(room) {
-  for (let y = 0; y < room.height; y++) for (let x = 0; x < room.width; x++) {
-    const px = x * T, py = y * T;
-    ctx.fillStyle = (x + y) % 2 ? "#3a3227" : "#433a2d";
-    ctx.fillRect(px, py, T, T);
-    ctx.fillStyle = "#2f281f"; // plank seams
-    ctx.fillRect(px, py + T / 2 - P, T, P);
-    ctx.fillRect(px + (y % 2 ? T / 4 : (3 * T) / 4), py, P, T / 2 - P);
-  }
-}
-
-function drawFurniture(f) {
-  const sp = SPRITES[f.kind];
-  const x0 = f.pos.x * T, y0 = f.pos.y * T;
-  if (sp) drawSprite(sp.rows, sp.pal, x0, y0, false);
-  else { ctx.fillStyle = "#ccc"; ctx.fillRect(x0 + 2, y0 + 2, T - 4, T - 4); }
-}
-
 function lerpPos(v, now) {
   const t = Math.min(1, (now - v.start) / STEP_MS);
   return { x: v.from.x + (v.to.x - v.from.x) * t, y: v.from.y + (v.to.y - v.from.y) * t };
@@ -137,8 +120,11 @@ function draw() {
   ctx.clearRect(0, 0, cv.width, cv.height);
   if (room) {
     drawFloor(room);
+    drawWalls(room);
     for (const f of room.furniture) drawFurniture(f);
-    for (const a of Object.values(actors)) if (a.room === room.id) drawActor(a, now);
+    drawHiddenZones(room);
+    // hidden actors (in zones this viewer may not see) are not drawn at all
+    for (const a of Object.values(actors)) if (a.room === room.id && !a.hidden) drawActor(a, now);
     if (hover) drawTooltip(hover);
   }
   requestAnimationFrame(draw);

@@ -20,13 +20,30 @@ const (
 	StateWorking = "working"
 	StateTalking = "talking"
 	StateAway    = "away"
+	StateHidden  = "hidden" // only in views: the viewer may not see this actor
 )
 
 // Furniture kinds.
 const (
-	KindWindow = "window" // timeline
-	KindPC     = "pc"     // work container
-	KindBed    = "bed"    // standby
+	KindWindow      = "window"    // timeline
+	KindPC          = "pc"        // work container
+	KindBed         = "bed"       // standby
+	KindSofa        = "sofa"      // visitors
+	KindBookshelf   = "bookshelf" // memory
+	KindShoebox     = "shoebox"   // decoration from here on
+	KindCounter     = "counter"
+	KindStove       = "stove"
+	KindFridge      = "fridge"
+	KindTable       = "table"
+	KindChair       = "chair"
+	KindLowTable    = "lowtable"
+	KindPlant       = "plant"
+	KindNightstand  = "nightstand"
+	KindWardrobe    = "wardrobe"
+	KindTV          = "tv"
+	KindFigureShelf = "figureshelf"
+	KindBeanbag     = "beanbag"
+	KindGuestBed    = "guestbed"
 )
 
 var (
@@ -38,6 +55,7 @@ var (
 	ErrUnreachable = errors.New("position is unreachable")
 	ErrForbidden   = errors.New("forbidden")
 	ErrBadRequest  = errors.New("bad request")
+	ErrNotUsable   = errors.New("furniture is decoration only")
 )
 
 type Pos struct {
@@ -49,10 +67,23 @@ type Furniture struct {
 	ID       string `json:"id"`
 	Kind     string `json:"kind"`
 	Label    string `json:"label"`
-	Function string `json:"function"`
-	Pos      Pos    `json:"pos"`    // occupied tile (blocked for walking)
-	Access   Pos    `json:"access"` // tile the actor stands on to use it
-	State    string `json:"state"`  // actor state while using it
+	Function string `json:"function"` // empty = decoration (cannot be used)
+	Pos      Pos    `json:"pos"`      // top-left occupied tile (blocked for walking)
+	Size     Size   `json:"size"`     // occupied tiles from Pos (zero = 1x1)
+	Access   Pos    `json:"access"`   // tile the actor stands on to use it
+	State    string `json:"state"`    // actor state while using it
+}
+
+// Occupies reports whether the furniture covers tile p.
+func (f *Furniture) Occupies(p Pos) bool {
+	w, h := f.Size.W, f.Size.H
+	if w <= 0 {
+		w = 1
+	}
+	if h <= 0 {
+		h = 1
+	}
+	return Rect{f.Pos.X, f.Pos.Y, w, h}.Contains(p)
 }
 
 type Room struct {
@@ -62,7 +93,12 @@ type Room struct {
 	Height     int          `json:"height"`
 	Visibility string       `json:"visibility"` // public / owner / invited
 	Invited    []string     `json:"invited"`
+	Zones      []*Zone      `json:"zones"`
+	Walls      []Rect       `json:"walls"` // impassable
+	Doors      []Pos        `json:"doors"` // passable gaps in walls
 	Furniture  []*Furniture `json:"furniture"`
+
+	HiddenZones []string `json:"hidden_zones,omitempty"` // view only: zones the viewer may not see
 }
 
 type Actor struct {
@@ -73,6 +109,7 @@ type Actor struct {
 	State  string `json:"state"`
 	Using  string `json:"using,omitempty"`  // furniture id currently in use
 	Target *Pos   `json:"target,omitempty"` // walking destination
+	Hidden bool   `json:"hidden,omitempty"` // view only: position/state withheld from this viewer
 
 	pending string // furniture to use on arrival
 	by      string // who requested the current walk
@@ -93,6 +130,7 @@ type Event struct {
 // Snapshot is the full world state.
 type Snapshot struct {
 	Type   string   `json:"type"` // "snapshot"
+	Viewer string   `json:"viewer,omitempty"`
 	Rooms  []*Room  `json:"rooms"`
 	Actors []*Actor `json:"actors"`
 }
@@ -113,21 +151,6 @@ func New() *World {
 		subs:   map[chan Event]struct{}{},
 		now:    time.Now,
 	}
-}
-
-// NewDefault builds the MVP world: nostarou's room with window / PC / bed.
-func NewDefault() *World {
-	w := New()
-	w.AddRoom(&Room{
-		ID: "nostarou-room", Owner: "nostarou", Visibility: "public",
-		Furniture: []*Furniture{
-			{ID: "window", Kind: KindWindow, Label: "窓", Function: "timeline", Pos: Pos{7, 0}, Access: Pos{7, 1}, State: StateTalking},
-			{ID: "pc", Kind: KindPC, Label: "PC", Function: "work-container", Pos: Pos{14, 5}, Access: Pos{13, 5}, State: StateWorking},
-			{ID: "bed", Kind: KindBed, Label: "ベッド", Function: "standby", Pos: Pos{1, 10}, Access: Pos{2, 10}, State: StateAway},
-		},
-	})
-	w.AddActor(&Actor{ID: "nostarou", Name: "のすたろう", RoomID: "nostarou-room", Pos: Pos{7, 6}, State: StateIdle})
-	return w
 }
 
 // SetHook registers a callback invoked (outside the world lock) for every event.
@@ -182,6 +205,13 @@ func (w *World) Snapshot() Snapshot {
 	for _, r := range w.rooms {
 		rc := *r
 		rc.Invited = append([]string{}, r.Invited...)
+		rc.Zones = nil
+		for _, z := range r.Zones {
+			zc := *z
+			rc.Zones = append(rc.Zones, &zc)
+		}
+		rc.Walls = append([]Rect{}, r.Walls...)
+		rc.Doors = append([]Pos{}, r.Doors...)
 		rc.Furniture = nil
 		for _, f := range r.Furniture {
 			fc := *f
@@ -239,8 +269,11 @@ func (r *Room) inBounds(p Pos) bool {
 }
 
 func (r *Room) blocked(p Pos) bool {
+	if r.IsWall(p) {
+		return true
+	}
 	for _, f := range r.Furniture {
-		if f.Pos == p {
+		if f.Occupies(p) {
 			return true
 		}
 	}
@@ -358,6 +391,10 @@ func (w *World) Interact(by, actorID, furnitureID string) error {
 	if f == nil {
 		w.mu.Unlock()
 		return ErrNoFurniture
+	}
+	if f.Function == "" {
+		w.mu.Unlock()
+		return ErrNotUsable
 	}
 	path, ok := r.findPath(a.Pos, f.Access)
 	if !ok {

@@ -111,8 +111,14 @@ func (s *Server) handleKnock(w http.ResponseWriter, r *http.Request) {
 	reply(w, err)
 }
 
-// handleWorld: read-only WebSocket. Sends a snapshot, then events. Client messages are ignored.
+// ViewerParam is the /world query parameter naming the viewer. Like X-Crab-Id it
+// is identification only (not authentication). Empty = anonymous (public zones only).
+const ViewerParam = "viewer"
+
+// handleWorld: read-only WebSocket. Sends a snapshot, then events, both filtered by
+// the viewer's zone visibility. Client messages are ignored.
 func (s *Server) handleWorld(w http.ResponseWriter, r *http.Request) {
+	viewer := r.URL.Query().Get(ViewerParam)
 	c, err := websocket.Accept(w, r, nil)
 	if err != nil {
 		return
@@ -133,7 +139,7 @@ func (s *Server) handleWorld(w http.ResponseWriter, r *http.Request) {
 	events, cancel := s.World.Subscribe()
 	defer cancel()
 
-	if err := writeJSON(ctx, c, s.World.Snapshot()); err != nil {
+	if err := writeJSON(ctx, c, s.World.ViewSnapshot(viewer)); err != nil {
 		return
 	}
 	for {
@@ -143,6 +149,10 @@ func (s *Server) handleWorld(w http.ResponseWriter, r *http.Request) {
 		case ev, ok := <-events:
 			if !ok {
 				return
+			}
+			ev, ok = s.World.FilterEvent(viewer, ev)
+			if !ok {
+				continue
 			}
 			if err := writeJSON(ctx, c, ev); err != nil {
 				return
@@ -186,7 +196,8 @@ func statusOf(err error) int {
 	case errors.Is(err, world.ErrNoActor), errors.Is(err, world.ErrNoRoom), errors.Is(err, world.ErrNoFurniture):
 		return http.StatusNotFound
 	case errors.Is(err, world.ErrOutOfBounds), errors.Is(err, world.ErrBlocked),
-		errors.Is(err, world.ErrUnreachable), errors.Is(err, world.ErrBadRequest):
+		errors.Is(err, world.ErrUnreachable), errors.Is(err, world.ErrBadRequest),
+		errors.Is(err, world.ErrNotUsable):
 		return http.StatusBadRequest
 	}
 	return http.StatusInternalServerError

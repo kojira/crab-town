@@ -15,56 +15,60 @@ func walk(w *World, max int) {
 
 func TestMoveWalksToTarget(t *testing.T) {
 	w := NewDefault()
-	if err := w.Move(owner, "nostarou", Pos{3, 6}); err != nil {
+	if err := w.Move(owner, "nostarou", Pos{22, 7}); err != nil {
 		t.Fatal(err)
 	}
 	a, _ := w.Actor("nostarou")
-	if a.Pos != (Pos{7, 6}) || a.Target == nil {
+	if a.Pos != (Pos{22, 3}) || a.Target == nil {
 		t.Fatalf("should not teleport: %+v", a)
 	}
 	w.Step()
 	a, _ = w.Actor("nostarou")
-	if a.Pos != (Pos{6, 6}) {
+	if a.Pos != (Pos{22, 4}) {
 		t.Fatalf("one step should move one tile, got %+v", a.Pos)
 	}
 	walk(w, 10)
 	a, _ = w.Actor("nostarou")
-	if a.Pos != (Pos{3, 6}) || a.Target != nil {
+	if a.Pos != (Pos{22, 7}) || a.Target != nil {
 		t.Fatalf("did not arrive: %+v", a)
 	}
 }
 
 func TestMoveBounds(t *testing.T) {
 	w := NewDefault()
-	for _, p := range []Pos{{-1, 0}, {0, -1}, {RoomWidth, 0}, {0, RoomHeight}} {
+	for _, p := range []Pos{{-1, 0}, {0, -1}, {HouseWidth, 0}, {0, HouseHeight}} {
 		if err := w.Move(owner, "nostarou", p); !errors.Is(err, ErrOutOfBounds) {
 			t.Errorf("%v: want ErrOutOfBounds, got %v", p, err)
 		}
 	}
-	if err := w.Move(owner, "nostarou", Pos{RoomWidth - 1, RoomHeight - 1}); err != nil {
-		t.Errorf("corner should be valid: %v", err)
+	if err := w.Move(owner, "nostarou", Pos{HouseWidth - 2, HouseHeight - 2}); err != nil {
+		t.Errorf("inner corner should be valid: %v", err)
 	}
 }
 
 func TestMoveBlockedByFurniture(t *testing.T) {
 	w := NewDefault()
-	if err := w.Move(owner, "nostarou", Pos{14, 5}); !errors.Is(err, ErrBlocked) {
-		t.Fatalf("want ErrBlocked, got %v", err)
+	// every tile of a multi-tile piece blocks: sofa is 4x2 at (24,6), bed 2x3 at (1,14)
+	for _, p := range []Pos{{24, 6}, {27, 7}, {1, 14}, {2, 16}} {
+		if err := w.Move(owner, "nostarou", p); !errors.Is(err, ErrBlocked) {
+			t.Errorf("%v: want ErrBlocked, got %v", p, err)
+		}
 	}
 }
 
 func TestPathAvoidsFurniture(t *testing.T) {
 	w := NewDefault()
-	w.Move(owner, "nostarou", Pos{15, 5}) // behind the PC at (14,5)
+	sofa := w.rooms["nostarou-room"].furniture("sofa")
+	w.Move(owner, "nostarou", Pos{25, 8}) // behind the sofa
 	for i := 0; i < 30; i++ {
 		w.Step()
 		a, _ := w.Actor("nostarou")
-		if a.Pos == (Pos{14, 5}) {
+		if sofa.Occupies(a.Pos) {
 			t.Fatal("walked through furniture")
 		}
 	}
 	a, _ := w.Actor("nostarou")
-	if a.Pos != (Pos{15, 5}) {
+	if a.Pos != (Pos{25, 8}) {
 		t.Fatalf("did not arrive: %+v", a.Pos)
 	}
 }
@@ -86,7 +90,7 @@ func TestInteractWindowWalksThenUses(t *testing.T) {
 	}
 	walk(w, 20)
 	a, _ = w.Actor("nostarou")
-	if a.Pos != (Pos{7, 1}) || a.Using != "window" || a.State != StateTalking {
+	if a.Pos != (Pos{25, 1}) || a.Using != "window" || a.State != StateTalking {
 		t.Fatalf("unexpected actor after walking: %+v", a)
 	}
 	if len(got) != 1 || got[0].Furniture.ID != "window" || got[0].By != owner {
@@ -95,13 +99,14 @@ func TestInteractWindowWalksThenUses(t *testing.T) {
 }
 
 func TestInteractStates(t *testing.T) {
-	cases := map[string]string{"window": StateTalking, "pc": StateWorking, "bed": StateAway}
+	cases := map[string]string{"window": StateTalking, "sofa": StateTalking, "pc": StateWorking,
+		"bookshelf": StateWorking, "bed": StateAway}
 	for id, st := range cases {
 		w := NewDefault()
 		if err := w.Interact(owner, "nostarou", id); err != nil {
 			t.Fatal(err)
 		}
-		walk(w, 30)
+		walk(w, 100)
 		a, _ := w.Actor("nostarou")
 		if a.State != st || a.Using != id {
 			t.Errorf("%s: got %+v", id, a)
@@ -111,8 +116,12 @@ func TestInteractStates(t *testing.T) {
 
 func TestInteractUnknownFurniture(t *testing.T) {
 	w := NewDefault()
-	if err := w.Interact(owner, "nostarou", "bookshelf"); !errors.Is(err, ErrNoFurniture) {
+	if err := w.Interact(owner, "nostarou", "jukebox"); !errors.Is(err, ErrNoFurniture) {
 		t.Fatalf("want ErrNoFurniture, got %v", err)
+	}
+	// kitchen furniture is decoration only
+	if err := w.Interact(owner, "nostarou", "fridge"); !errors.Is(err, ErrNotUsable) {
+		t.Fatalf("want ErrNotUsable, got %v", err)
 	}
 }
 
@@ -148,7 +157,7 @@ func TestSubscribeReceivesEvents(t *testing.T) {
 	w := NewDefault()
 	ch, cancel := w.Subscribe()
 	defer cancel()
-	w.Move(owner, "nostarou", Pos{7, 5})
+	w.Move(owner, "nostarou", Pos{22, 5})
 	ev := <-ch
 	if ev.Type != "actor" || ev.Actor.ID != "nostarou" {
 		t.Fatalf("unexpected event %+v", ev)

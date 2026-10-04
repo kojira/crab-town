@@ -5,17 +5,20 @@
 <title>crab-town</title>
 <style>
   body { background:#1b1d23; color:#ddd; font-family:system-ui,sans-serif; margin:20px; }
-  canvas { image-rendering:pixelated; border:2px solid #444; display:block; }
+  canvas { image-rendering:pixelated; border:2px solid #444; display:block;
+           max-width:calc(100vw - 44px); max-height:calc(100vh - 150px); width:auto; height:auto; }
   #status { margin-top:8px; font-size:14px; }
   #log { margin-top:8px; font:12px monospace; color:#9a9; max-height:160px; overflow:auto; white-space:pre; }
 </style>
 </head>
 <body>
 <h1>⚡ crab-town</h1>
-<canvas id="c" width="512" height="384"></canvas>
+<canvas id="c" width="1024" height="640"></canvas>
 <div id="status">connecting...</div>
 <div id="log"></div>
 <script src="sprites.js"></script>
+<script src="furniture.js"></script>
+<script src="floor.js"></script>
 <script src="render.js"></script>
 <script src="ws.js"></script>
 </body>
