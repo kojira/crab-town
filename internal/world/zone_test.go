@@ -2,10 +2,12 @@ package world
 
 import (
 	"errors"
+	"slices"
+	"strings"
 	"testing"
 )
 
-func house(w *World) *Room { return w.rooms["nostarou-room"] }
+func house(w *World) *Room { return w.rooms[TownID] }
 
 // Layout sanity: furniture never sits on a wall (except the window, which is set
 // into the outer wall), every usable piece can be reached from the start tile.
@@ -44,10 +46,10 @@ func TestLayoutConsistent(t *testing.T) {
 
 func TestWallsBlockAndDoorsPass(t *testing.T) {
 	w := NewDefault()
-	if err := w.Move(owner, "nostarou", Pos{8, 15}); !errors.Is(err, ErrBlocked) {
+	if err := w.Move(owner, "nostarou", Pos{34, 15}); !errors.Is(err, ErrBlocked) {
 		t.Fatalf("wall tile: want ErrBlocked, got %v", err)
 	}
-	if err := w.Move(owner, "nostarou", Pos{4, 12}); err != nil {
+	if err := w.Move(owner, "nostarou", Pos{30, 12}); err != nil {
 		t.Fatalf("door tile should be walkable: %v", err)
 	}
 }
@@ -58,8 +60,8 @@ func TestWallsBlockAndDoorsPass(t *testing.T) {
 func TestPathGoesAroundWalls(t *testing.T) {
 	w := NewDefault()
 	r := house(w)
-	w.actors["nostarou"].Pos = Pos{7, 16}
-	if err := w.Move(owner, "nostarou", Pos{9, 16}); err != nil {
+	w.actors["nostarou"].Pos = Pos{33, 16}
+	if err := w.Move(owner, "nostarou", Pos{35, 16}); err != nil {
 		t.Fatal(err)
 	}
 	steps, door := 0, map[Pos]bool{}
@@ -78,17 +80,17 @@ func TestPathGoesAroundWalls(t *testing.T) {
 		}
 	}
 	a, _ := w.Actor("nostarou")
-	if a.Pos != (Pos{9, 16}) {
+	if a.Pos != (Pos{35, 16}) {
 		t.Fatalf("did not arrive: %v", a.Pos)
 	}
-	if !door[Pos{4, 12}] || !door[Pos{12, 12}] || steps <= 2 {
+	if !door[Pos{30, 12}] || !door[Pos{38, 12}] || steps <= 2 {
 		t.Fatalf("expected detour through both doors, steps=%d doors=%v", steps, door)
 	}
 }
 
 func TestZoneVisibilityRules(t *testing.T) {
 	r := house(NewDefault())
-	r.Invited = []string{"labomi"}
+	r.House(NostarouHouse).Invited = []string{"labomi"}
 	cases := []struct {
 		zone, viewer string
 		want         bool
@@ -111,40 +113,41 @@ func TestZoneVisibilityRules(t *testing.T) {
 		}
 	}
 	// bedroom doorway is not a zone but must not leak either
-	if r.CanSeeTile("", Pos{4, 12}) || !r.CanSeeTile("nostarou", Pos{4, 12}) {
+	if r.CanSeeTile("", Pos{30, 12}) || !r.CanSeeTile("nostarou", Pos{30, 12}) {
 		t.Error("bedroom doorway visibility wrong")
 	}
-	if !r.CanSeeTile("", Pos{23, 9}) {
+	if !r.CanSeeTile("", Pos{49, 9}) {
 		t.Error("LDK doorway should be public")
 	}
-	if r.CanSeeZone("nostarou", &Zone{Visibility: "bogus"}) != true || r.CanSeeZone("x", &Zone{Visibility: "bogus"}) {
+	bogus := &Zone{Visibility: "bogus", House: NostarouHouse}
+	if r.CanSeeZone("nostarou", bogus) != true || r.CanSeeZone("x", bogus) || r.CanSeeZone("nostarou", &Zone{Visibility: VisOwner}) {
 		t.Error("unknown visibility must fail closed (owner only)")
 	}
 }
 
 func TestViewSnapshotHidesActorInBedroom(t *testing.T) {
 	w := NewDefault()
-	w.actors["nostarou"].Pos = Pos{3, 15}
+	w.actors["nostarou"].Pos = Pos{29, 15}
 	w.actors["nostarou"].State = StateAway
 	w.actors["nostarou"].Using = "bed"
 
 	pub := w.ViewSnapshot("")
-	a := pub.Actors[0]
+	a := actorIn(pub, "nostarou")
 	if !a.Hidden || a.Pos != (Pos{}) || a.State != StateHidden || a.Using != "" {
 		t.Fatalf("public viewer sees private actor: %+v", a)
 	}
-	if hz := pub.Rooms[0].HiddenZones; len(hz) != 7 {
-		t.Fatalf("anonymous should have 7 hidden zones, got %v", hz)
+	if hz := pub.Rooms[0].HiddenZones; len(hz) != 12 {
+		t.Fatalf("anonymous should have 12 hidden zones (7 + 5 in labomi's house), got %v", hz)
 	}
 	own := w.ViewSnapshot("nostarou")
-	if a := own.Actors[0]; a.Hidden || a.Pos != (Pos{3, 15}) || a.Using != "bed" {
+	if a := actorIn(own, "nostarou"); a.Hidden || a.Pos != (Pos{29, 15}) || a.Using != "bed" {
 		t.Fatalf("owner must see everything: %+v", a)
 	}
-	if len(own.Rooms[0].HiddenZones) != 0 {
-		t.Fatal("owner has no hidden zones")
+	if hz := own.Rooms[0].HiddenZones; len(hz) != 5 || slices.ContainsFunc(hz, func(id string) bool { return !strings.HasPrefix(id, "labomi-") }) {
+		t.Fatalf("owner sees all of its own house, only labomi's private zones are hidden: %v", hz)
 	}
 	// the world itself is untouched by filtering
-	if got, _ := w.Actor("nostarou"); got.Pos != (Pos{3, 15}) {
+	if got, _ := w.Actor("nostarou"); got.Pos != (Pos{29, 15}) {
 		t.Fatalf("filter mutated world: %+v", got)
 	}
 }
@@ -152,7 +155,7 @@ func TestViewSnapshotHidesActorInBedroom(t *testing.T) {
 func TestFilterEvent(t *testing.T) {
 	w := NewDefault()
 	bed := *house(w).furniture("bed")
-	inBed := &Actor{ID: "nostarou", Name: "のすたろう", RoomID: "nostarou-room", Pos: Pos{3, 15}, State: StateAway, Using: "bed"}
+	inBed := &Actor{ID: "nostarou", Name: "のすたろう", RoomID: TownID, Pos: Pos{29, 15}, State: StateAway, Using: "bed"}
 
 	if _, ok := w.FilterEvent("", Event{Type: "interact", Actor: inBed, Furniture: &bed, By: owner}); ok {
 		t.Fatal("interact in bedroom must be dropped for the public")
@@ -165,10 +168,10 @@ func TestFilterEvent(t *testing.T) {
 		t.Fatal("owner must receive bedroom events")
 	}
 	// walking in public LDK toward the bedroom: position visible, target withheld
-	tgt := Pos{3, 15}
-	walking := &Actor{ID: "nostarou", RoomID: "nostarou-room", Pos: Pos{22, 3}, Target: &tgt}
+	tgt := Pos{29, 15}
+	walking := &Actor{ID: "nostarou", RoomID: TownID, Pos: Pos{48, 3}, Target: &tgt}
 	ev, ok = w.FilterEvent("", Event{Type: "actor", Actor: walking})
-	if !ok || ev.Actor.Hidden || ev.Actor.Target != nil || ev.Actor.Pos != (Pos{22, 3}) {
+	if !ok || ev.Actor.Hidden || ev.Actor.Target != nil || ev.Actor.Pos != (Pos{48, 3}) {
 		t.Fatalf("public walk: %+v", ev.Actor)
 	}
 	if walking.Target == nil {

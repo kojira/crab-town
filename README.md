@@ -30,7 +30,7 @@ opencrab から独立した「2D空間 gateway」。エージェントが部屋�
 2. Canvas 描画
 3. ハートビートでのすたろうが窓まで歩く
 
-次段: らぼみちゃんの家、街（家の外へ出る）
+次段: 街（家の外へ出る）。らぼみちゃんの家は実装済み（下の「MVP 実装」）
 
 ---
 
@@ -42,7 +42,17 @@ opencrab から独立した「2D空間 gateway」。エージェントが部屋�
 - `web/` : Canvas ビューア（ビルドツールなし、バイナリに embed）。`furniture.js` 家具ドット絵 / `floor.js` 床・壁・ドア / `props.js` 小物・水回り・使用中ランプ / `render.js` 描画 / `ws.js` 受信
 - `cmd/crab-town` : 起動コマンド
 
-部屋: `nostarou-room`（32x20 の 4LDK＋水回り、owner = `nostarou`）。壁（通行不可）とドア（通行可）で仕切られ、BFS は壁を回り込んでドアを通る。
+町: 部屋 `town`（58x20）1枚に家が2軒と庭。壁（通行不可）とドア（通行可）で仕切られ、BFS は壁を回り込んでドアを通る。
+
+| x | 区画 | house id / owner |
+|---|---|---|
+| 0..21 | らぼみの家（22x20）: LDK・玄関・廊下・らぼみの部屋（owner）・おとまり部屋（invited）・トイレ / 洗面所 / 浴室（owner） | `labomi-house` / `labomi` |
+| 22..25 | 庭（public）。y=4 の飛び石が両家の玄関（(21,4) と (26,4)）をつなぐ | — |
+| 26..57 | のすたろうの家（下表の 4LDK を x+26 にずらしたもの） | `nostarou-house` / `nostarou` |
+
+各ゾーンは所属する家（`zone.house`）を持ち、`invited` / `owner` の判定はその家の owner・招待者で行う（自分の家の owner でも隣の家の owner 専用ゾーンは見えない）。らぼみの家のゾーン・家具 id は `labomi-` で始まる。
+
+のすたろうの家（座標は家内ローカル、町では x+26）:
 
 | ゾーン | 床 | 可視性 | 主な家具 |
 |---|---|---|---|
@@ -70,7 +80,7 @@ opencrab から独立した「2D空間 gateway」。エージェントが部屋�
 家具は `size` 分のタイルを占有し通行不可。ただし `walkable: true` の平たい小物（ラグ・マット・デスクチェア）は上を歩ける。`function` が空の家具は飾り（interact すると 400）。interact するとアクターは家具の前まで歩き、到着した時点で `interact` イベントが発生する。
 
 #### ゾーンの可視性
-`public` = 誰でも / `invited` = 持ち主＋招待者 / `owner` = 持ち主のみ（不明な値は owner 扱い）。
+`public` = 誰でも / `invited` = その家の持ち主＋招待者 / `owner` = その家の持ち主のみ（不明な値は owner 扱い。家に属さない非 public ゾーンは誰にも見えない）。
 閲覧者はトークンから決まる（下の「認証」）。ビューアはページ URL の `?token=` をそのまま `/world` に渡す。
 見えないゾーン（とそのドア）にいるアクターは `{"hidden":true,"state":"hidden"}` に伏せられ位置・使用家具が消える。そこでの `interact` イベントは届かない。見えるゾーンを歩いていても目的地が見えないゾーンなら `target` は伏せる。snapshot の `hidden_zones` に見えないゾーン id が入り、ビューアは曇りガラス＋錠前で覆う。
 
@@ -89,18 +99,18 @@ go run ./cmd/crab-town
 - `CRAB_TICK` : 歩行の 1 ステップ間隔（既定 `250ms`）
 - `CRAB_TOKENS` : `id:token,id:token` 形式の actor トークン
 - `CRAB_TOKENS_FILE` : `{"id":"token"}` 形式の JSON ファイルのパス（`tokens.example.json` を参考に。`tokens.json` は `.gitignore` 済み。**トークンをリポジトリに入れない**）
-- `CRAB_INVITED` : `nostarou-room` の招待者 id（カンマ区切り、例 `labomi`）。未設定なら招待者はゼロで、トークンを持っていても `invited` ゾーン（趣味部屋・ゲストルーム）は見えない・操作できない。招待者として閲覧するには **`CRAB_INVITED` に id を入れ、かつ `CRAB_TOKENS` / `CRAB_TOKENS_FILE` にその id のトークンを登録**する（トークンのない招待者は起動時に警告）
+- `CRAB_INVITED` : 家ごとの招待者。`house=id,id;house2=id` 形式（house は house id か owner id）。例 `nostarou-house=labomi;labomi-house=nostarou`。旧形式（`labomi` のように id の列挙だけ）は `nostarou-house` に適用される。存在しない家・同じ家の重複は起動エラー。未設定なら招待者はゼロで、トークンを持っていても他人の家の `invited` ゾーン（趣味部屋・ゲストルーム・おとまり部屋）は見えない・入れない。招待者として閲覧するには **`CRAB_INVITED` に id を入れ、かつ `CRAB_TOKENS` / `CRAB_TOKENS_FILE` にその id のトークンを登録**する（トークンのない招待者は起動時に警告）
 
 招待者視点で見る例（トークンは自分で生成した値を使う）:
 ```sh
-CRAB_TOKENS_FILE=tokens.json CRAB_INVITED=labomi go run ./cmd/crab-town
+CRAB_TOKENS_FILE=tokens.json CRAB_INVITED="nostarou-house=labomi;labomi-house=nostarou" go run ./cmd/crab-town
 # ブラウザで http://127.0.0.1:8787/?token=<labomi のトークン>
-# → 趣味部屋・ゲストルームは見える／寝室・書斎・洗面所・浴室と使用中のトイレは伏せられる
+# → のすたろうの家の趣味部屋・ゲストルームは見える／寝室・書斎・洗面所・浴室と使用中のトイレは伏せられる
 ```
 
 ### 認証
 - トークンは actor ごと。`Authorization: Bearer <token>`（WS は `?token=<token>` も可）で送る
-- POST 系（move / interact / knock）はトークン必須。なし・不正は **401**。トークンの持ち主がそのまま呼び出し元 id になる（move / interact は部屋の持ち主か招待者のみ、それ以外は 403）
+- POST 系（move / interact / knock）はトークン必須。なし・不正は **401**。トークンの持ち主がそのまま呼び出し元 id になる（move / interact: 動かせるのは自分自身か、自分が持ち主・招待者である家の中にいるアクター。行き先・使う家具が家の中ならその家の持ち主か招待者であること。庭は誰でも歩ける。それ以外は 403）
 - `WS /world`: トークンなし＝public 閲覧者、正しいトークン＝その actor として閲覧、不正トークン＝401
 - 旧 `X-Crab-Id` ヘッダと `?viewer=` は無視される
 
@@ -114,11 +124,11 @@ curl -X POST localhost:8787/actor/interact -H "Authorization: Bearer $NOSTAROU_T
 
 # 指定タイルへ移動
 curl -X POST localhost:8787/actor/move -H "Authorization: Bearer $NOSTAROU_TOKEN" \
-  -d '{"actor":"nostarou","x":3,"y":4}'
+  -d '{"actor":"nostarou","x":29,"y":4}'
 
 # ノック
 curl -X POST localhost:8787/actor/knock -H "Authorization: Bearer $LABOMI_TOKEN" \
-  -d '{"room":"nostarou-room","message":"あそぼ"}'
+  -d '{"room":"nostarou-house","message":"あそぼ"}'
 ```
 
 レスポンス: 成功 `{"ok":true}` / 失敗 `{"ok":false,"error":"..."}`（400 範囲外・通行不可・不正JSON、401 トークンなし・不正、403 権限なし、404 存在しない actor / room / furniture）
@@ -128,7 +138,7 @@ curl -X POST localhost:8787/actor/knock -H "Authorization: Bearer $LABOMI_TOKEN"
 2. 以降は差分イベント
    - `{"type":"actor","actor":{"id","pos","state","using","target"},...}` 位置・状態の変化
    - `{"type":"interact","actor":{...},"furniture":{...},"by":"..."}` 家具の使用開始
-   - `{"type":"knock","room":"...","by":"...","message":"..."}`
+   - `{"type":"knock","room":"town","house":"...","by":"...","message":"..."}`（`room` に house id を渡すとその家へのノック）
    - `{"type":"occupancy","room":"...","in_use":["bath"],"hidden_zones":[...]}` トイレ・浴室の使用中フラグが変わった
 
 webhook には `interact` と `knock` イベントが同じ JSON 形式で送られる。
@@ -142,4 +152,4 @@ go test ./...
 - トークンのローテーション・失効 API（現状は設定変更＋再起動）
 - 家具の配置自体は全員に見える
 - ハートビート連携（現状デモは interact API を叩いて発火）
-- ポスト、複数の家、街、永続化
+- ポスト（庭の郵便受けは飾り）、3軒目以降・家の追加 API、永続化

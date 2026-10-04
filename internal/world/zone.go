@@ -30,6 +30,7 @@ type Zone struct {
 	Floor      string `json:"floor"`      // floor texture hint for the viewer
 	Visibility string `json:"visibility"` // public / invited / owner
 	Rect       Rect   `json:"rect"`
+	House      string `json:"house,omitempty"` // owning house id; "" = outdoors (garden)
 	// Private: in-use privacy (toilet, bath). While any actor is inside, only the
 	// actors inside may see it -- this overrides Visibility, the owner included.
 	Private bool `json:"private,omitempty"`
@@ -82,20 +83,26 @@ func (r *Room) ZoneAt(p Pos) *Zone {
 }
 
 // CanSeeZone reports whether viewer may see what happens inside z (ignoring
-// occupancy). Unknown visibility values are treated as owner-only (fail closed).
+// occupancy). invited / owner are judged against the house the zone belongs
+// to, not the room: owning one house gives nothing in the neighbour's.
+// Unknown visibility values are treated as owner-only (fail closed).
 func (r *Room) CanSeeZone(viewer string, z *Zone) bool { return r.canSeeZone(viewer, z, nil) }
 
 func (r *Room) canSeeZone(viewer string, z *Zone, occ occupancy) bool {
 	if in := occ[z.ID]; len(in) > 0 {
 		return viewer != "" && slices.Contains(in, viewer)
 	}
-	switch z.Visibility {
-	case VisPublic:
+	if z.Visibility == VisPublic {
 		return true
-	case VisInvited:
-		return r.CanOperate(viewer)
 	}
-	return viewer != "" && viewer == r.Owner
+	h := r.zoneHouse(z)
+	if h == nil {
+		return false // a non-public zone outside any house: nobody (fail closed)
+	}
+	if z.Visibility == VisInvited {
+		return h.CanOperate(viewer)
+	}
+	return viewer != "" && viewer == h.Owner
 }
 
 // CanSeeTile reports whether viewer may see an actor standing on p.

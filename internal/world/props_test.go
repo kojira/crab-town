@@ -65,10 +65,10 @@ func TestPropsKeepEverythingReachable(t *testing.T) {
 // Flat props (rugs, desk chair) are walkable; solid ones block.
 func TestWalkableProps(t *testing.T) {
 	r := house(NewDefault())
-	if r.blocked(Pos{13, 14}) { // desk chair = PC access tile
+	if r.blocked(Pos{39, 14}) { // desk chair = PC access tile
 		t.Error("desk chair must be walkable")
 	}
-	if !r.blocked(Pos{7, 6}) { // toilet bowl
+	if !r.blocked(Pos{33, 6}) { // toilet bowl
 		t.Error("toilet bowl must block")
 	}
 }
@@ -84,8 +84,8 @@ func step(w *World, n int) {
 func TestPrivateZoneInUse(t *testing.T) {
 	w := NewDefault()
 	r := house(w)
-	r.Invited = []string{"labomi"}
-	w.AddActor(&Actor{ID: "labomi", Name: "らぼみ", RoomID: r.ID, Pos: Pos{22, 3}})
+	r.House(NostarouHouse).Invited = []string{"labomi"}
+	w.AddActor(&Actor{ID: "labomi", Name: "らぼみ", RoomID: r.ID, Pos: Pos{48, 3}})
 
 	// empty: normal visibility (owner sees the bath zone)
 	if s := w.ViewSnapshot(owner); slices.Contains(s.Rooms[0].HiddenZones, "bath") || len(s.Rooms[0].InUse) != 0 {
@@ -94,11 +94,11 @@ func TestPrivateZoneInUse(t *testing.T) {
 
 	events, cancel := w.Subscribe()
 	defer cancel()
-	if err := w.Move("labomi", "labomi", Pos{17, 7}); err != nil { // into the bath
+	if err := w.Move("labomi", "labomi", Pos{43, 7}); err != nil { // into the bath
 		t.Fatal(err)
 	}
 	step(w, 60)
-	if a, _ := w.Actor("labomi"); a.Pos != (Pos{17, 7}) {
+	if a, _ := w.Actor("labomi"); a.Pos != (Pos{43, 7}) {
 		t.Fatalf("labomi did not reach the bath: %v", a.Pos)
 	}
 
@@ -118,7 +118,7 @@ func TestPrivateZoneInUse(t *testing.T) {
 		t.Error("the one inside must see the bath")
 	}
 	for _, a := range self.Actors {
-		if a.ID == "labomi" && (a.Hidden || a.Pos != (Pos{17, 7})) {
+		if a.ID == "labomi" && (a.Hidden || a.Pos != (Pos{43, 7})) {
 			t.Errorf("labomi cannot see herself: %+v", a)
 		}
 	}
@@ -147,7 +147,7 @@ func TestPrivateZoneInUse(t *testing.T) {
 	}
 
 	// leave: back to normal visibility
-	if err := w.Move("labomi", "labomi", Pos{22, 3}); err != nil {
+	if err := w.Move("labomi", "labomi", Pos{48, 3}); err != nil {
 		t.Fatal(err)
 	}
 	step(w, 60)

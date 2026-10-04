@@ -49,15 +49,15 @@ func TestHTTPStatusCodes(t *testing.T) {
 		{"/actor/interact", "nostarou", `{"actor":"nostarou","furniture":"window"}`, 200},
 		{"/actor/interact", "", `{"actor":"nostarou","furniture":"window"}`, 401},
 		{"/actor/interact", "!bad", `{"actor":"nostarou","furniture":"window"}`, 401},
-		{"/actor/move", "", `{"actor":"nostarou","x":22,"y":5}`, 401},
-		{"/actor/move", "!bad", `{"actor":"nostarou","x":22,"y":5}`, 401},
-		{"/actor/knock", "", `{"room":"nostarou-room","message":"hi"}`, 401},
-		{"/actor/knock", "!bad", `{"room":"nostarou-room","message":"hi"}`, 401},
+		{"/actor/move", "", `{"actor":"nostarou","x":48,"y":5}`, 401},
+		{"/actor/move", "!bad", `{"actor":"nostarou","x":48,"y":5}`, 401},
+		{"/actor/knock", "", `{"room":"nostarou-house","message":"hi"}`, 401},
+		{"/actor/knock", "!bad", `{"room":"nostarou-house","message":"hi"}`, 401},
 		{"/actor/interact", "nostarou", `{"actor":"nostarou","furniture":"nope"}`, 404},
 		{"/actor/move", "nostarou", `{"actor":"nostarou","x":99,"y":0}`, 400},
-		{"/actor/move", "guest", `{"actor":"nostarou","x":1,"y":1}`, 403},
+		{"/actor/move", "guest", `{"actor":"nostarou","x":27,"y":1}`, 403},
 		{"/actor/move", "nostarou", `not json`, 400},
-		{"/actor/knock", "guest", `{"room":"nostarou-room","message":"hi"}`, 200},
+		{"/actor/knock", "guest", `{"room":"nostarou-house","message":"hi"}`, 200},
 	}
 	for _, c := range cases {
 		if got := post(t, ts.URL+c.path, c.by, c.body).StatusCode; got != c.want {
@@ -117,23 +117,35 @@ func TestWSSnapshotAndEvents(t *testing.T) {
 	}
 	var snap world.Snapshot
 	json.Unmarshal(b, &snap)
-	if snap.Type != "snapshot" || len(snap.Rooms) != 1 || len(snap.Rooms[0].Zones) != 12 || len(snap.Rooms[0].Furniture) == 0 {
+	if snap.Type != "snapshot" || len(snap.Rooms) != 1 || len(snap.Rooms[0].Zones) != 21 || len(snap.Rooms[0].Houses) != 2 || len(snap.Rooms[0].Furniture) == 0 {
 		t.Fatalf("bad snapshot: %s", b)
 	}
 
 	// viewer writes are ignored (read-only)
-	c.Write(ctx, websocket.MessageText, []byte(`{"actor":"nostarou","x":0,"y":0}`))
+	c.Write(ctx, websocket.MessageText, []byte(`{"actor":"nostarou","x":26,"y":0}`))
 
-	post(t, ts.URL+"/actor/move", "nostarou", `{"actor":"nostarou","x":22,"y":5}`)
+	post(t, ts.URL+"/actor/move", "nostarou", `{"actor":"nostarou","x":48,"y":5}`)
 	_, b, err = c.Read(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	var ev world.Event
 	json.Unmarshal(b, &ev)
-	if ev.Type != "actor" || ev.Actor == nil || ev.Actor.Target == nil || *ev.Actor.Target != (world.Pos{X: 22, Y: 5}) {
+	if ev.Type != "actor" || ev.Actor == nil || ev.Actor.Target == nil || *ev.Actor.Target != (world.Pos{X: 48, Y: 5}) {
 		t.Fatalf("unexpected event: %s", b)
 	}
+}
+
+// snapActor returns actor id from a snapshot (fails the test if absent).
+func snapActor(t *testing.T, snap world.Snapshot, id string) world.Actor {
+	t.Helper()
+	for _, a := range snap.Actors {
+		if a.ID == id {
+			return *a
+		}
+	}
+	t.Fatalf("no actor %s in snapshot", id)
+	return world.Actor{}
 }
 
 // readSnapActor dials /world+query (with optional headers) and returns the
@@ -153,10 +165,7 @@ func readSnapActor(t *testing.T, base, query string, h http.Header) (world.Actor
 	}
 	var snap world.Snapshot
 	json.Unmarshal(b, &snap)
-	if len(snap.Actors) != 1 {
-		t.Fatalf("bad snapshot: %s", b)
-	}
-	return *snap.Actors[0], snap.Viewer
+	return snapActor(t, snap, "nostarou"), snap.Viewer
 }
 
 // WS output is filtered per viewer: in bed (owner-only bedroom) the public sees
@@ -192,7 +201,7 @@ func TestWSFiltersPrivateZones(t *testing.T) {
 		}
 		var ev world.Event
 		json.Unmarshal(b, &ev)
-		if ev.Type == "interact" || (ev.Actor != nil && !ev.Actor.Hidden && ev.Actor.Pos.Y >= 12) {
+		if ev.Type == "interact" || (ev.Actor != nil && ev.Actor.ID == "nostarou" && !ev.Actor.Hidden && ev.Actor.Pos.Y >= 12) {
 			t.Fatalf("public stream leaked: %s", b)
 		}
 	}

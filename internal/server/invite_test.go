@@ -18,7 +18,7 @@ var inviteTokens = Tokens{"nostarou": "test-owner-token", "labomi": "test-labomi
 // walkIntoToilet moves the owner onto a free toilet tile and lets it arrive.
 func walkIntoToilet(t *testing.T, w *world.World) {
 	t.Helper()
-	for _, p := range []world.Pos{{X: 6, Y: 7}, {X: 7, Y: 7}, {X: 8, Y: 7}, {X: 7, Y: 8}, {X: 6, Y: 8}, {X: 8, Y: 8}} {
+	for _, p := range []world.Pos{{X: 32, Y: 7}, {X: 33, Y: 7}, {X: 34, Y: 7}, {X: 33, Y: 8}, {X: 32, Y: 8}, {X: 34, Y: 8}} {
 		if w.Move("nostarou", "nostarou", p) == nil {
 			for i := 0; i < 200; i++ {
 				w.Step()
@@ -47,10 +47,10 @@ func hiddenFor(t *testing.T, base, token string) ([]string, world.Actor) {
 	}
 	var snap world.Snapshot
 	json.Unmarshal(b, &snap)
-	if len(snap.Rooms) != 1 || len(snap.Actors) != 1 {
+	if len(snap.Rooms) != 1 {
 		t.Fatalf("bad snapshot: %s", b)
 	}
-	return snap.Rooms[0].HiddenZones, *snap.Actors[0]
+	return snap.Rooms[0].HiddenZones, snapActor(t, snap, "nostarou")
 }
 
 // Regression: a guest listed in CRAB_INVITED, viewing with its own token while
@@ -61,7 +61,7 @@ func TestInvitedGuestSeesInvitedZonesOnly(t *testing.T) {
 	w := world.NewDefault()
 	env := map[string]string{"CRAB_INVITED": " labomi , ,ghost"}
 	ids, noToken, err := ApplyInvited(w, inviteTokens, func(k string) string { return env[k] })
-	if err != nil || !slices.Equal(ids, []string{"labomi", "ghost"}) || !slices.Equal(noToken, []string{"ghost"}) {
+	if err != nil || !slices.Equal(ids[world.NostarouHouse], []string{"labomi", "ghost"}) || len(ids) != 1 || !slices.Equal(noToken, []string{"ghost"}) {
 		t.Fatalf("ApplyInvited: ids=%v noToken=%v err=%v", ids, noToken, err)
 	}
 	walkIntoToilet(t, w)
@@ -103,5 +103,58 @@ func TestApplyInvitedUnset(t *testing.T) {
 	}
 	if s := w.ViewSnapshot("labomi"); !slices.Contains(s.Rooms[0].HiddenZones, "hobby") {
 		t.Fatalf("without CRAB_INVITED labomi is not invited: %v", s.Rooms[0].HiddenZones)
+	}
+}
+
+// CRAB_INVITED per house: "house=id,id;house2=id". House may be the house id
+// or the owner id; a bare list is the legacy form (nostarou's house).
+func TestParseInvited(t *testing.T) {
+	got, err := ParseInvited(" nostarou-house = labomi , ; labomi=nostarou,ghost ;")
+	if err != nil || len(got) != 2 || !slices.Equal(got["nostarou-house"], []string{"labomi"}) || !slices.Equal(got["labomi"], []string{"nostarou", "ghost"}) {
+		t.Fatalf("new form: %v %v", got, err)
+	}
+	got, err = ParseInvited("labomi,ghost")
+	if err != nil || len(got) != 1 || !slices.Equal(got[world.NostarouHouse], []string{"labomi", "ghost"}) {
+		t.Fatalf("legacy form must go to nostarou's house: %v %v", got, err)
+	}
+	for _, bad := range []string{"=labomi", "labomi-house=a;labomi-house=b", "x;nostarou-house=y"} {
+		if _, err := ParseInvited(bad); err == nil {
+			t.Errorf("%q: want error", bad)
+		}
+	}
+}
+
+// Both houses invite each other through CRAB_INVITED. Each guest sees the
+// host's invited zones but never the host's owner-only zones; an unknown house
+// is a startup error.
+func TestApplyInvitedPerHouse(t *testing.T) {
+	w := world.NewDefault()
+	env := map[string]string{"CRAB_INVITED": "nostarou-house=labomi;labomi=nostarou"}
+	if _, noToken, err := ApplyInvited(w, inviteTokens, func(k string) string { return env[k] }); err != nil || len(noToken) != 0 {
+		t.Fatalf("ApplyInvited: %v %v", noToken, err)
+	}
+	ts := httptest.NewServer(New(w, inviteTokens, "", nil).Handler())
+	defer ts.Close()
+	check := func(viewer string, visible, hidden []string) {
+		t.Helper()
+		got, _ := hiddenFor(t, ts.URL, inviteTokens[viewer])
+		for _, z := range visible {
+			if slices.Contains(got, z) {
+				t.Errorf("%s: %s must be visible, hidden=%v", viewer, z, got)
+			}
+		}
+		for _, z := range hidden {
+			if !slices.Contains(got, z) {
+				t.Errorf("%s: %s must be hidden, hidden=%v", viewer, z, got)
+			}
+		}
+	}
+	check("nostarou", []string{"labomi-guest", "labomi-ldk", "bedroom", "hobby"}, []string{"labomi-room", "labomi-bath", "labomi-toilet", "labomi-washroom"})
+	check("labomi", []string{"hobby", "guest", "labomi-room", "labomi-bath"}, []string{"bedroom", "study", "bath", "toilet"})
+	check("stranger", []string{"garden", "living", "labomi-ldk"}, []string{"hobby", "labomi-guest", "labomi-room", "bedroom"})
+
+	env["CRAB_INVITED"] = "nowhere=labomi"
+	if _, _, err := ApplyInvited(world.NewDefault(), inviteTokens, func(k string) string { return env[k] }); err == nil {
+		t.Fatal("unknown house must be an error")
 	}
 }

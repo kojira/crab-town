@@ -21,7 +21,7 @@ func TestSelfDeclaredIdentityIgnored(t *testing.T) {
 	ts := httptest.NewServer(New(w, testTokens, "", nil).Handler())
 	defer ts.Close()
 
-	req, _ := http.NewRequest("POST", ts.URL+"/actor/move", strings.NewReader(`{"actor":"nostarou","x":22,"y":5}`))
+	req, _ := http.NewRequest("POST", ts.URL+"/actor/move", strings.NewReader(`{"actor":"nostarou","x":48,"y":5}`))
 	req.Header.Set("X-Crab-Id", "nostarou")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
