@@ -37,6 +37,13 @@ func main() {
 	}
 
 	w := world.NewDefault()
+	invited, noToken, err := server.ApplyInvited(w, tokens, os.Getenv)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if len(noToken) > 0 {
+		log.Printf("warning: invited ids without a token (cannot view as invited): %v", noToken)
+	}
 	srv := server.New(w, tokens, webhook, crabtown.WebFS())
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -62,7 +69,7 @@ func main() {
 		defer cancel()
 		hs.Shutdown(sctx)
 	}()
-	log.Printf("crab-town listening on %s (webhook: %v, tokens: %d)", addr, webhook != "", len(tokens))
+	log.Printf("crab-town listening on %s (webhook: %v, tokens: %d, invited: %v)", addr, webhook != "", len(tokens), invited)
 	if err := hs.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)
 	}

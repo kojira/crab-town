@@ -196,6 +196,19 @@ func (w *World) AddRoom(r *Room) {
 	w.rooms[r.ID] = r
 }
 
+// SetInvited replaces the invited ids of a room (they may operate it and see
+// its invited zones).
+func (w *World) SetInvited(roomID string, ids []string) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	r := w.rooms[roomID]
+	if r == nil {
+		return ErrNoRoom
+	}
+	r.Invited = append([]string{}, ids...)
+	return nil
+}
+
 func (w *World) AddActor(a *Actor) {
 	w.mu.Lock()
 	defer w.mu.Unlock()

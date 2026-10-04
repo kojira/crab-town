@@ -89,6 +89,14 @@ go run ./cmd/crab-town
 - `CRAB_TICK` : 歩行の 1 ステップ間隔（既定 `250ms`）
 - `CRAB_TOKENS` : `id:token,id:token` 形式の actor トークン
 - `CRAB_TOKENS_FILE` : `{"id":"token"}` 形式の JSON ファイルのパス（`tokens.example.json` を参考に。`tokens.json` は `.gitignore` 済み。**トークンをリポジトリに入れない**）
+- `CRAB_INVITED` : `nostarou-room` の招待者 id（カンマ区切り、例 `labomi`）。未設定なら招待者はゼロで、トークンを持っていても `invited` ゾーン（趣味部屋・ゲストルーム）は見えない・操作できない。招待者として閲覧するには **`CRAB_INVITED` に id を入れ、かつ `CRAB_TOKENS` / `CRAB_TOKENS_FILE` にその id のトークンを登録**する（トークンのない招待者は起動時に警告）
+
+招待者視点で見る例（トークンは自分で生成した値を使う）:
+```sh
+CRAB_TOKENS_FILE=tokens.json CRAB_INVITED=labomi go run ./cmd/crab-town
+# ブラウザで http://127.0.0.1:8787/?token=<labomi のトークン>
+# → 趣味部屋・ゲストルームは見える／寝室・書斎・洗面所・浴室と使用中のトイレは伏せられる
+```
 
 ### 認証
 - トークンは actor ごと。`Authorization: Bearer <token>`（WS は `?token=<token>` も可）で送る
