@@ -8,10 +8,18 @@ function log(s) {
   logEl.textContent = (new Date().toLocaleTimeString() + " " + s + "\n" + logEl.textContent).slice(0, 4000);
 }
 
-// ?viewer=<id> on the page URL is forwarded to /world (identification only, not auth).
+// ?token=<token> on the page URL is forwarded to /world; the server decides who
+// the viewer is from it. No token = public viewer.
 function viewerQuery() {
-  const v = new URLSearchParams(location.search).get("viewer");
-  return v ? "?viewer=" + encodeURIComponent(v) : "";
+  const v = new URLSearchParams(location.search).get("token");
+  return v ? "?token=" + encodeURIComponent(v) : "";
+}
+
+function inHidden(r, p) {
+  return !!r && (r.hidden_zones || []).some(id => {
+    const z = (r.zones || []).find(z => z.id === id);
+    return z && p && p.x >= z.rect.x && p.y >= z.rect.y && p.x < z.rect.x + z.rect.w && p.y < z.rect.y + z.rect.h;
+  });
 }
 
 function connect() {
@@ -29,6 +37,11 @@ function connect() {
       actors[ev.actor.id] = ev.actor;
     } else if (ev.type === "interact") {
       log(`interact: ${ev.actor.name} -> ${ev.furniture.label} (${ev.furniture.function})`);
+    } else if (ev.type === "occupancy") {
+      const r = rooms[ev.room];
+      if (r) { r.in_use = ev.in_use || []; r.hidden_zones = ev.hidden_zones || []; }
+      // someone inside a now-hidden zone is not reported again: drop stale positions
+      for (const a of Object.values(actors)) if (a.room === ev.room && !a.hidden && inHidden(r, a.pos)) a.hidden = true;
     } else if (ev.type === "knock") {
       log(`knock: ${ev.by} @ ${ev.room} ${ev.message || ""}`);
     }

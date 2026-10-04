@@ -15,12 +15,19 @@ import (
 	"github.com/kojira/crab-town/internal/world"
 )
 
+// Test-only tokens (generated per test binary; never real secrets).
+var testTokens = Tokens{"nostarou": "test-owner-token", "guest": "test-guest-token"}
+
+// post calls a mutating API as actor `by` ("" = no token, "!bad" = wrong token).
 func post(t *testing.T, url, by, body string) *http.Response {
 	t.Helper()
 	req, _ := http.NewRequest("POST", url, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
-	if by != "" {
-		req.Header.Set(RequesterHeader, by)
+	switch {
+	case by == "!bad":
+		req.Header.Set("Authorization", "Bearer not-a-token")
+	case by != "":
+		req.Header.Set("Authorization", "Bearer "+testTokens[by])
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -32,7 +39,7 @@ func post(t *testing.T, url, by, body string) *http.Response {
 
 func TestHTTPStatusCodes(t *testing.T) {
 	w := world.NewDefault()
-	ts := httptest.NewServer(New(w, "", fstest.MapFS{"index.html": {Data: []byte("hi")}}).Handler())
+	ts := httptest.NewServer(New(w, testTokens, "", fstest.MapFS{"index.html": {Data: []byte("hi")}}).Handler())
 	defer ts.Close()
 
 	cases := []struct {
@@ -40,7 +47,12 @@ func TestHTTPStatusCodes(t *testing.T) {
 		want           int
 	}{
 		{"/actor/interact", "nostarou", `{"actor":"nostarou","furniture":"window"}`, 200},
-		{"/actor/interact", "", `{"actor":"nostarou","furniture":"window"}`, 403},
+		{"/actor/interact", "", `{"actor":"nostarou","furniture":"window"}`, 401},
+		{"/actor/interact", "!bad", `{"actor":"nostarou","furniture":"window"}`, 401},
+		{"/actor/move", "", `{"actor":"nostarou","x":22,"y":5}`, 401},
+		{"/actor/move", "!bad", `{"actor":"nostarou","x":22,"y":5}`, 401},
+		{"/actor/knock", "", `{"room":"nostarou-room","message":"hi"}`, 401},
+		{"/actor/knock", "!bad", `{"room":"nostarou-room","message":"hi"}`, 401},
 		{"/actor/interact", "nostarou", `{"actor":"nostarou","furniture":"nope"}`, 404},
 		{"/actor/move", "nostarou", `{"actor":"nostarou","x":99,"y":0}`, 400},
 		{"/actor/move", "guest", `{"actor":"nostarou","x":1,"y":1}`, 403},
@@ -69,7 +81,7 @@ func TestWebhookOnInteract(t *testing.T) {
 	defer hook.Close()
 
 	w := world.NewDefault()
-	ts := httptest.NewServer(New(w, hook.URL, nil).Handler())
+	ts := httptest.NewServer(New(w, testTokens, hook.URL, nil).Handler())
 	defer ts.Close()
 
 	post(t, ts.URL+"/actor/interact", "nostarou", `{"actor":"nostarou","furniture":"bed"}`)
@@ -88,7 +100,7 @@ func TestWebhookOnInteract(t *testing.T) {
 
 func TestWSSnapshotAndEvents(t *testing.T) {
 	w := world.NewDefault()
-	ts := httptest.NewServer(New(w, "", nil).Handler())
+	ts := httptest.NewServer(New(w, testTokens, "", nil).Handler())
 	defer ts.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -105,7 +117,7 @@ func TestWSSnapshotAndEvents(t *testing.T) {
 	}
 	var snap world.Snapshot
 	json.Unmarshal(b, &snap)
-	if snap.Type != "snapshot" || len(snap.Rooms) != 1 || len(snap.Rooms[0].Zones) != 9 || len(snap.Rooms[0].Furniture) == 0 {
+	if snap.Type != "snapshot" || len(snap.Rooms) != 1 || len(snap.Rooms[0].Zones) != 12 || len(snap.Rooms[0].Furniture) == 0 {
 		t.Fatalf("bad snapshot: %s", b)
 	}
 
@@ -124,12 +136,13 @@ func TestWSSnapshotAndEvents(t *testing.T) {
 	}
 }
 
-// readSnap dials /world?viewer=... and returns the actor from the snapshot.
-func readSnapActor(t *testing.T, base, viewer string) world.Actor {
+// readSnapActor dials /world+query (with optional headers) and returns the
+// actor and viewer from the first snapshot.
+func readSnapActor(t *testing.T, base, query string, h http.Header) (world.Actor, string) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	c, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(base, "http")+"/world?"+ViewerParam+"="+viewer, nil)
+	c, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(base, "http")+"/world"+query, &websocket.DialOptions{HTTPHeader: h})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -143,14 +156,14 @@ func readSnapActor(t *testing.T, base, viewer string) world.Actor {
 	if len(snap.Actors) != 1 {
 		t.Fatalf("bad snapshot: %s", b)
 	}
-	return *snap.Actors[0]
+	return *snap.Actors[0], snap.Viewer
 }
 
 // WS output is filtered per viewer: in bed (owner-only bedroom) the public sees
 // only a hidden actor, the owner sees the real position.
 func TestWSFiltersPrivateZones(t *testing.T) {
 	w := world.NewDefault()
-	ts := httptest.NewServer(New(w, "", nil).Handler())
+	ts := httptest.NewServer(New(w, testTokens, "", nil).Handler())
 	defer ts.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -183,10 +196,10 @@ func TestWSFiltersPrivateZones(t *testing.T) {
 			t.Fatalf("public stream leaked: %s", b)
 		}
 	}
-	if a := readSnapActor(t, ts.URL, ""); !a.Hidden || a.Using != "" || a.Pos != (world.Pos{}) {
+	if a, _ := readSnapActor(t, ts.URL, "", nil); !a.Hidden || a.Using != "" || a.Pos != (world.Pos{}) {
 		t.Fatalf("anonymous snapshot leaked: %+v", a)
 	}
-	if a := readSnapActor(t, ts.URL, "nostarou"); a.Hidden || a.Using != "bed" {
+	if a, _ := readSnapActor(t, ts.URL, "?token="+testTokens["nostarou"], nil); a.Hidden || a.Using != "bed" {
 		t.Fatalf("owner snapshot wrong: %+v", a)
 	}
 }

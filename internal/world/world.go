@@ -44,6 +44,25 @@ const (
 	KindFigureShelf = "figureshelf"
 	KindBeanbag     = "beanbag"
 	KindGuestBed    = "guestbed"
+	KindDoormat     = "doormat"
+	KindUmbrella    = "umbrella"
+	KindCoatRack    = "coatrack"
+	KindKitchenMat  = "kitchenmat"
+	KindTrash       = "trash"
+	KindClock       = "clock" // wall-mounted
+	KindSideboard   = "sideboard"
+	KindFloorLamp   = "floorlamp"
+	KindRug         = "rug"
+	KindDeskChair   = "deskchair"
+	KindToilet      = "toilet"
+	KindPaper       = "paper"
+	KindToiletMat   = "toiletmat"
+	KindVanity      = "vanity"
+	KindWasher      = "washer"
+	KindLaundry     = "laundry"
+	KindShower      = "shower"
+	KindBathtub     = "bathtub"
+	KindBathMat     = "bathmat"
 )
 
 var (
@@ -67,11 +86,12 @@ type Furniture struct {
 	ID       string `json:"id"`
 	Kind     string `json:"kind"`
 	Label    string `json:"label"`
-	Function string `json:"function"` // empty = decoration (cannot be used)
-	Pos      Pos    `json:"pos"`      // top-left occupied tile (blocked for walking)
-	Size     Size   `json:"size"`     // occupied tiles from Pos (zero = 1x1)
-	Access   Pos    `json:"access"`   // tile the actor stands on to use it
-	State    string `json:"state"`    // actor state while using it
+	Function string `json:"function"`           // empty = decoration (cannot be used)
+	Pos      Pos    `json:"pos"`                // top-left occupied tile (blocked for walking)
+	Size     Size   `json:"size"`               // occupied tiles from Pos (zero = 1x1)
+	Access   Pos    `json:"access"`             // tile the actor stands on to use it
+	State    string `json:"state"`              // actor state while using it
+	Walkable bool   `json:"walkable,omitempty"` // flat (rug, mat, desk chair): does not block
 }
 
 // Occupies reports whether the furniture covers tile p.
@@ -99,6 +119,7 @@ type Room struct {
 	Furniture  []*Furniture `json:"furniture"`
 
 	HiddenZones []string `json:"hidden_zones,omitempty"` // view only: zones the viewer may not see
+	InUse       []string `json:"in_use,omitempty"`       // view only: occupied private zones (door lamp)
 }
 
 type Actor struct {
@@ -118,13 +139,16 @@ type Actor struct {
 
 // Event is something that happened in the world. Sent to WS subscribers and the webhook hook.
 type Event struct {
-	Type      string     `json:"type"` // actor | interact | knock
+	Type      string     `json:"type"` // actor | interact | knock | occupancy
 	Time      time.Time  `json:"time"`
 	Room      string     `json:"room,omitempty"`
 	Actor     *Actor     `json:"actor,omitempty"`
 	Furniture *Furniture `json:"furniture,omitempty"`
 	By        string     `json:"by,omitempty"`
 	Message   string     `json:"message,omitempty"`
+	// occupancy events only: occupied private zones, and (per viewer) hidden zones
+	InUse       []string `json:"in_use,omitempty"`
+	HiddenZones []string `json:"hidden_zones,omitempty"`
 }
 
 // Snapshot is the full world state.
@@ -273,7 +297,7 @@ func (r *Room) blocked(p Pos) bool {
 		return true
 	}
 	for _, f := range r.Furniture {
-		if f.Occupies(p) {
+		if !f.Walkable && f.Occupies(p) {
 			return true
 		}
 	}
@@ -460,6 +484,7 @@ func (w *World) arriveLocked(a *Actor, r *Room) []Event {
 // Step advances every walking actor by one tile.
 func (w *World) Step() {
 	w.mu.Lock()
+	before := w.inUseLocked()
 	var evs []Event
 	for _, a := range w.actors {
 		if len(a.path) == 0 {
@@ -477,6 +502,7 @@ func (w *World) Step() {
 		}
 		evs = append(evs, Event{Type: "actor", Room: a.RoomID, Actor: copyActor(a), By: a.by})
 	}
+	evs = append(evs, w.occupancyEventsLocked(before)...)
 	w.mu.Unlock()
 	for _, ev := range evs {
 		w.emit(ev)

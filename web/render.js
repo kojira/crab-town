@@ -45,7 +45,7 @@ cv.addEventListener("mousemove", (e) => {
   const tx = Math.floor((e.clientX - r.left) * cv.width / r.width / T);
   const ty = Math.floor((e.clientY - r.top) * cv.height / r.height / T);
   const room = Object.values(rooms)[0];
-  hover = room ? room.furniture.find(f => occupies(f, tx, ty)) || null : null;
+  hover = room ? room.furniture.find(f => !f.walkable && occupies(f, tx, ty)) || room.furniture.find(f => occupies(f, tx, ty)) || null : null;
   cv.style.cursor = hover ? "help" : "default";
 });
 cv.addEventListener("mouseleave", () => { hover = null; });
@@ -121,8 +121,11 @@ function draw() {
   if (room) {
     drawFloor(room);
     drawWalls(room);
-    for (const f of room.furniture) drawFurniture(f);
+    // flat props (rugs, mats) first so everything else stands on them
+    for (const f of room.furniture) if (f.walkable) drawFurniture(f);
+    for (const f of room.furniture) if (!f.walkable) drawFurniture(f);
     drawHiddenZones(room);
+    drawUseLamps(room);
     // hidden actors (in zones this viewer may not see) are not drawn at all
     for (const a of Object.values(actors)) if (a.room === room.id && !a.hidden) drawActor(a, now);
     if (hover) drawTooltip(hover);

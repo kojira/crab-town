@@ -1,6 +1,9 @@
 package world
 
-import "sort"
+import (
+	"slices"
+	"sort"
+)
 
 // Size is a furniture footprint in tiles.
 type Size struct {
@@ -27,6 +30,22 @@ type Zone struct {
 	Floor      string `json:"floor"`      // floor texture hint for the viewer
 	Visibility string `json:"visibility"` // public / invited / owner
 	Rect       Rect   `json:"rect"`
+	// Private: in-use privacy (toilet, bath). While any actor is inside, only the
+	// actors inside may see it -- this overrides Visibility, the owner included.
+	Private bool `json:"private,omitempty"`
+}
+
+// occupancy maps a private zone id to the actors inside it (in-use zones only).
+type occupancy map[string][]string
+
+// inUse lists the occupied private zones (sorted). Only this leaves the house.
+func (o occupancy) inUse() []string {
+	out := []string{}
+	for id := range o {
+		out = append(out, id)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // IsDoor reports whether p is a door (a passable gap in a wall).
@@ -62,9 +81,14 @@ func (r *Room) ZoneAt(p Pos) *Zone {
 	return nil
 }
 
-// CanSeeZone reports whether viewer may see what happens inside z.
-// Unknown visibility values are treated as owner-only (fail closed).
-func (r *Room) CanSeeZone(viewer string, z *Zone) bool {
+// CanSeeZone reports whether viewer may see what happens inside z (ignoring
+// occupancy). Unknown visibility values are treated as owner-only (fail closed).
+func (r *Room) CanSeeZone(viewer string, z *Zone) bool { return r.canSeeZone(viewer, z, nil) }
+
+func (r *Room) canSeeZone(viewer string, z *Zone, occ occupancy) bool {
+	if in := occ[z.ID]; len(in) > 0 {
+		return viewer != "" && slices.Contains(in, viewer)
+	}
 	switch z.Visibility {
 	case VisPublic:
 		return true
@@ -77,12 +101,14 @@ func (r *Room) CanSeeZone(viewer string, z *Zone) bool {
 // CanSeeTile reports whether viewer may see an actor standing on p.
 // A tile outside every zone (a door) is visible only if every zone touching it
 // is visible, so standing in a bedroom doorway does not leak to the public.
-func (r *Room) CanSeeTile(viewer string, p Pos) bool {
+func (r *Room) CanSeeTile(viewer string, p Pos) bool { return r.canSeeTile(viewer, p, nil) }
+
+func (r *Room) canSeeTile(viewer string, p Pos, occ occupancy) bool {
 	if z := r.ZoneAt(p); z != nil {
-		return r.CanSeeZone(viewer, z)
+		return r.canSeeZone(viewer, z, occ)
 	}
 	for _, d := range []Pos{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {
-		if z := r.ZoneAt(Pos{p.X + d.X, p.Y + d.Y}); z != nil && !r.CanSeeZone(viewer, z) {
+		if z := r.ZoneAt(Pos{p.X + d.X, p.Y + d.Y}); z != nil && !r.canSeeZone(viewer, z, occ) {
 			return false
 		}
 	}
@@ -90,10 +116,10 @@ func (r *Room) CanSeeTile(viewer string, p Pos) bool {
 }
 
 // hiddenZones lists the ids of zones viewer may not see.
-func (r *Room) hiddenZones(viewer string) []string {
-	var out []string
+func (r *Room) hiddenZones(viewer string, occ occupancy) []string {
+	out := []string{}
 	for _, z := range r.Zones {
-		if !r.CanSeeZone(viewer, z) {
+		if !r.canSeeZone(viewer, z, occ) {
 			out = append(out, z.ID)
 		}
 	}
@@ -102,12 +128,12 @@ func (r *Room) hiddenZones(viewer string) []string {
 
 // redactActor returns the actor as viewer may see it. Position, state, furniture
 // and target inside invisible zones are withheld; only id / name / room remain.
-func (r *Room) redactActor(viewer string, a *Actor) *Actor {
+func (r *Room) redactActor(viewer string, a *Actor, occ occupancy) *Actor {
 	c := copyActor(a)
-	if !r.CanSeeTile(viewer, a.Pos) {
+	if !r.canSeeTile(viewer, a.Pos, occ) {
 		return &Actor{ID: a.ID, Name: a.Name, RoomID: a.RoomID, State: StateHidden, Hidden: true}
 	}
-	if c.Target != nil && !r.CanSeeTile(viewer, *c.Target) {
+	if c.Target != nil && !r.canSeeTile(viewer, *c.Target, occ) {
 		c.Target = nil // do not reveal where in the private area it is heading
 	}
 	return c
@@ -119,14 +145,17 @@ func (w *World) ViewSnapshot(viewer string) Snapshot {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	s.Viewer = viewer
+	occ := map[string]occupancy{}
 	for _, r := range s.Rooms {
 		if room := w.rooms[r.ID]; room != nil {
-			r.HiddenZones = room.hiddenZones(viewer)
+			occ[r.ID] = w.occupancyLocked(room)
+			r.HiddenZones = room.hiddenZones(viewer, occ[r.ID])
+			r.InUse = occ[r.ID].inUse()
 		}
 	}
 	for i, a := range s.Actors {
 		if room := w.rooms[a.RoomID]; room != nil {
-			s.Actors[i] = room.redactActor(viewer, a)
+			s.Actors[i] = room.redactActor(viewer, a, occ[a.RoomID])
 		}
 	}
 	sort.Slice(s.Actors, func(i, j int) bool { return s.Actors[i].ID < s.Actors[j].ID })
@@ -137,21 +166,33 @@ func (w *World) ViewSnapshot(viewer string) Snapshot {
 // Interact events inside invisible zones are dropped (the furniture would leak
 // what the actor is doing); actor events are redacted.
 func (w *World) FilterEvent(viewer string, ev Event) (Event, bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if ev.Type == EventOccupancy {
+		room := w.rooms[ev.Room]
+		if room == nil {
+			return ev, false
+		}
+		// recompute for this viewer: the door flags plus which zones to frost
+		occ := w.occupancyLocked(room)
+		ev.InUse, ev.HiddenZones = occ.inUse(), room.hiddenZones(viewer, occ)
+		return ev, true
+	}
 	if ev.Actor == nil {
 		return ev, true
 	}
-	w.mu.Lock()
-	defer w.mu.Unlock()
 	room := w.rooms[ev.Actor.RoomID]
 	if room == nil {
 		return ev, false // fail closed
 	}
-	if !room.CanSeeTile(viewer, ev.Actor.Pos) {
+	occ := w.occupancyLocked(room)
+	occ.add(room, ev.Actor) // the event's own position counts even if it has moved on
+	if !room.canSeeTile(viewer, ev.Actor.Pos, occ) {
 		if ev.Type != "actor" {
 			return Event{}, false
 		}
 		ev.By = ""
 	}
-	ev.Actor = room.redactActor(viewer, ev.Actor)
+	ev.Actor = room.redactActor(viewer, ev.Actor, occ)
 	return ev, true
 }

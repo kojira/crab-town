@@ -1,1 +1,4 @@
 /crab-town
+tokens.json
+*.tokens.json
+.env

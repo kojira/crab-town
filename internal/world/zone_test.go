@@ -16,7 +16,7 @@ func TestLayoutConsistent(t *testing.T) {
 	for _, f := range r.Furniture {
 		for y := f.Pos.Y; y < f.Pos.Y+max(f.Size.H, 1); y++ {
 			for x := f.Pos.X; x < f.Pos.X+max(f.Size.W, 1); x++ {
-				if f.Kind != KindWindow && (r.IsWall(Pos{x, y}) || r.ZoneAt(Pos{x, y}) == nil) {
+				if f.Kind != KindWindow && f.Kind != KindClock && (r.IsWall(Pos{x, y}) || r.ZoneAt(Pos{x, y}) == nil) {
 					t.Errorf("%s covers non-floor tile (%d,%d)", f.ID, x, y)
 				}
 			}
@@ -96,6 +96,7 @@ func TestZoneVisibilityRules(t *testing.T) {
 		{"living", "", true}, {"entrance", "stranger", true}, {"kitchen", "", true},
 		{"bedroom", "", false}, {"bedroom", "labomi", false}, {"bedroom", "nostarou", true},
 		{"study", "stranger", false}, {"study", "nostarou", true},
+		{"toilet", "", false}, {"toilet", "nostarou", true}, {"bath", "labomi", false}, {"washroom", "nostarou", true},
 		{"hobby", "", false}, {"hobby", "labomi", true}, {"guest", "stranger", false}, {"guest", "labomi", true},
 	}
 	for _, c := range cases {
@@ -113,7 +114,7 @@ func TestZoneVisibilityRules(t *testing.T) {
 	if r.CanSeeTile("", Pos{4, 12}) || !r.CanSeeTile("nostarou", Pos{4, 12}) {
 		t.Error("bedroom doorway visibility wrong")
 	}
-	if !r.CanSeeTile("", Pos{14, 9}) {
+	if !r.CanSeeTile("", Pos{23, 9}) {
 		t.Error("LDK doorway should be public")
 	}
 	if r.CanSeeZone("nostarou", &Zone{Visibility: "bogus"}) != true || r.CanSeeZone("x", &Zone{Visibility: "bogus"}) {
@@ -132,8 +133,8 @@ func TestViewSnapshotHidesActorInBedroom(t *testing.T) {
 	if !a.Hidden || a.Pos != (Pos{}) || a.State != StateHidden || a.Using != "" {
 		t.Fatalf("public viewer sees private actor: %+v", a)
 	}
-	if hz := pub.Rooms[0].HiddenZones; len(hz) != 4 {
-		t.Fatalf("anonymous should have 4 hidden zones, got %v", hz)
+	if hz := pub.Rooms[0].HiddenZones; len(hz) != 7 {
+		t.Fatalf("anonymous should have 7 hidden zones, got %v", hz)
 	}
 	own := w.ViewSnapshot("nostarou")
 	if a := own.Actors[0]; a.Hidden || a.Pos != (Pos{3, 15}) || a.Using != "bed" {

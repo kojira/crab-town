@@ -31,8 +31,13 @@ func main() {
 		log.Fatalf("invalid CRAB_TICK")
 	}
 
+	tokens, err := server.LoadTokens(os.Getenv)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	w := world.NewDefault()
-	srv := server.New(w, webhook, crabtown.WebFS())
+	srv := server.New(w, tokens, webhook, crabtown.WebFS())
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -57,7 +62,7 @@ func main() {
 		defer cancel()
 		hs.Shutdown(sctx)
 	}()
-	log.Printf("crab-town listening on %s (webhook: %v)", addr, webhook != "")
+	log.Printf("crab-town listening on %s (webhook: %v, tokens: %d)", addr, webhook != "", len(tokens))
 	if err := hs.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)
 	}

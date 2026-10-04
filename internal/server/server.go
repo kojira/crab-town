@@ -15,19 +15,16 @@ import (
 	"github.com/kojira/crab-town/internal/world"
 )
 
-// RequesterHeader carries the id of whoever is calling a mutating API.
-// MVP: this is NOT authentication, just identification.
-const RequesterHeader = "X-Crab-Id"
-
 type Server struct {
 	World      *world.World
+	Tokens     Tokens // actor id -> token; who a request acts as
 	WebhookURL string // empty = no webhook
 	Static     fs.FS
 	Client     *http.Client
 }
 
-func New(w *world.World, webhookURL string, static fs.FS) *Server {
-	s := &Server{World: w, WebhookURL: webhookURL, Static: static, Client: &http.Client{Timeout: 5 * time.Second}}
+func New(w *world.World, tokens Tokens, webhookURL string, static fs.FS) *Server {
+	s := &Server{World: w, Tokens: tokens, WebhookURL: webhookURL, Static: static, Client: &http.Client{Timeout: 5 * time.Second}}
 	if webhookURL != "" {
 		w.SetHook(s.forward)
 	}
@@ -84,41 +81,57 @@ type knockReq struct {
 	Message string `json:"message"`
 }
 
+// caller returns the authenticated actor id of a mutating request. A missing or
+// unknown token is answered with 401 and ok=false.
+func (s *Server) caller(w http.ResponseWriter, r *http.Request) (string, bool) {
+	who, err := s.Tokens.Who(requestToken(r))
+	if err != nil || who == "" {
+		writeErr(w, http.StatusUnauthorized, "valid token required")
+		return "", false
+	}
+	return who, true
+}
+
 func (s *Server) handleMove(w http.ResponseWriter, r *http.Request) {
+	by, ok := s.caller(w, r)
 	var req moveReq
-	if !decode(w, r, &req) {
+	if !ok || !decode(w, r, &req) {
 		return
 	}
-	err := s.World.Move(r.Header.Get(RequesterHeader), req.Actor, world.Pos{X: req.X, Y: req.Y})
+	err := s.World.Move(by, req.Actor, world.Pos{X: req.X, Y: req.Y})
 	reply(w, err)
 }
 
 func (s *Server) handleInteract(w http.ResponseWriter, r *http.Request) {
+	by, ok := s.caller(w, r)
 	var req interactReq
-	if !decode(w, r, &req) {
+	if !ok || !decode(w, r, &req) {
 		return
 	}
-	err := s.World.Interact(r.Header.Get(RequesterHeader), req.Actor, req.Furniture)
+	err := s.World.Interact(by, req.Actor, req.Furniture)
 	reply(w, err)
 }
 
 func (s *Server) handleKnock(w http.ResponseWriter, r *http.Request) {
+	by, ok := s.caller(w, r)
 	var req knockReq
-	if !decode(w, r, &req) {
+	if !ok || !decode(w, r, &req) {
 		return
 	}
-	err := s.World.Knock(r.Header.Get(RequesterHeader), req.Room, req.Message)
+	err := s.World.Knock(by, req.Room, req.Message)
 	reply(w, err)
 }
 
-// ViewerParam is the /world query parameter naming the viewer. Like X-Crab-Id it
-// is identification only (not authentication). Empty = anonymous (public zones only).
-const ViewerParam = "viewer"
-
-// handleWorld: read-only WebSocket. Sends a snapshot, then events, both filtered by
-// the viewer's zone visibility. Client messages are ignored.
+// handleWorld: read-only WebSocket. The viewer is whoever owns the token
+// (?token= or Authorization: Bearer); no token = public, a bad token = 401.
+// Sends a snapshot, then events, both filtered by the viewer's zone visibility.
+// Client messages are ignored.
 func (s *Server) handleWorld(w http.ResponseWriter, r *http.Request) {
-	viewer := r.URL.Query().Get(ViewerParam)
+	viewer, err := s.Tokens.Who(requestToken(r))
+	if err != nil {
+		writeErr(w, http.StatusUnauthorized, err.Error())
+		return
+	}
 	c, err := websocket.Accept(w, r, nil)
 	if err != nil {
 		return
