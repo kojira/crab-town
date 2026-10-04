@@ -12,6 +12,7 @@ import (
 	"time"
 
 	crabtown "github.com/kojira/crab-town"
+	"github.com/kojira/crab-town/internal/extgate"
 	"github.com/kojira/crab-town/internal/server"
 	"github.com/kojira/crab-town/internal/world"
 )
@@ -48,6 +49,17 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	gateCfg, err := extgate.LoadConfig(os.Getenv)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if gateCfg != nil {
+		go extgate.NewBridge(w, *gateCfg).Run(ctx)
+		log.Printf("extgate: enabled (instance %s, actor %s)", gateCfg.InstanceID, gateCfg.Actor)
+	} else {
+		log.Printf("extgate: disabled (no CRAB_EXTGATE_* config)")
+	}
 
 	go func() {
 		t := time.NewTicker(tick)

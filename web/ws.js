@@ -42,6 +42,10 @@ function connect() {
       if (r) { r.in_use = ev.in_use || []; r.hidden_zones = ev.hidden_zones || []; }
       // someone inside a now-hidden zone is not reported again: drop stale positions
       for (const a of Object.values(actors)) if (a.room === ev.room && !a.hidden && inHidden(r, a.pos)) a.hidden = true;
+    } else if (ev.type === "say" && ev.actor) {
+      // display only: a short-lived bubble over the speaker
+      speech[ev.actor.id] = { text: ev.message || "", until: performance.now() + SPEECH_MS };
+      log(`say: ${ev.actor.name}: ${ev.message || ""}`);
     } else if (ev.type === "knock") {
       log(`knock: ${ev.by} @ ${ev.room} ${ev.message || ""}`);
     }

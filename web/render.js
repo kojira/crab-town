@@ -95,6 +95,24 @@ function actorView(a, now) {
   return v;
 }
 
+// Speech bubbles from extgate say events (display only, fade after SPEECH_MS).
+const SPEECH_MS = 6000;
+const speech = {}; // actor id -> {text, until}
+function drawSpeech(a, x0, y0, now) {
+  const s = speech[a.id];
+  if (!s || now > s.until) { delete speech[a.id]; return; }
+  const text = s.text.length > 40 ? s.text.slice(0, 40) + "…" : s.text;
+  const px = fitFont(text, T * 8, 12, 9);
+  const w = Math.ceil(ctx.measureText(text).width) + 10, h = px + 8;
+  const x = Math.max(0, Math.min(cv.width - w, Math.round(x0 + T / 2 - w / 2)));
+  const y = Math.max(0, y0 - h - 6);
+  ctx.fillStyle = "#fff"; ctx.fillRect(x, y, w, h);
+  ctx.fillRect(Math.round(x0 + T / 2) - 2, y + h, 4, 4);
+  ctx.fillStyle = "#111"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText(text, x + w / 2, y + h / 2 + 0.5);
+  ctx.textBaseline = "alphabetic";
+}
+
 function drawActor(a, now) {
   const v = actorView(a, now);
   const p = lerpPos(v, now);
@@ -112,6 +130,7 @@ function drawActor(a, now) {
   drawSprite(NOSTAROU_LEGS[moving ? v.frame : 0], NOSTAROU_PAL, x0, y0 + 13 * P, v.flip);
   drawStateIcon(a.state, x0, y0);
   drawNameTag(a.name, x0 + T / 2, y0, y0 + T);
+  drawSpeech(a, x0, y0, now);
 }
 
 function draw() {
