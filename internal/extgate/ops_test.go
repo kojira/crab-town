@@ -327,7 +327,7 @@ func checkMap(t *testing.T, w *world.World, text string) {
 		}
 	}
 	wa, _ := w.Where("nostarou")
-	for _, want := range []string{fmt.Sprintf("現在地: (%d,%d) %s", wa.Pos.X, wa.Pos.Y, wa.Zone), "ドア: ", "ソファ[sofa](50,6)", "らぼみ("} {
+	for _, want := range []string{fmt.Sprintf("現在地: (%d,%d) %s", wa.Pos.X, wa.Pos.Y, wa.Zone), "ドア: ", "ソファ[sofa](50,6)", "らぼみ[住人]("} {
 		if !strings.Contains(text, want) {
 			t.Errorf("map lacks %q", want)
 		}
@@ -347,7 +347,7 @@ func TestMapHidesActorInPrivateZone(t *testing.T) {
 	if a, _ := w.Actor("labomi"); a.Pos != (world.Pos{X: 3, Y: 16}) {
 		t.Fatalf("labomi at %v", a.Pos)
 	}
-	if v := b.View(); strings.Contains(v, "らぼみ(") {
+	if v := b.View(); strings.Contains(v, "らぼみ[") {
 		t.Errorf("hidden actor listed:\n%s", v)
 	}
 }

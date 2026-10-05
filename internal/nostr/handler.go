@@ -178,7 +178,7 @@ var OwnerSpawn = world.Pos{X: world.GardenX + 2, Y: 5}
 // and knock carry) in the garden the first time the owner is heard from. It
 // walks with the house rights of OwnerActor; visibility is unchanged.
 func (h *Handler) ownerJoin(pubkey string) {
-	h.World.Join(world.Actor{ID: GuestID(pubkey), Name: "オーナー", Pubkey: pubkey, RoomID: world.TownID, Pos: OwnerSpawn}, h.OwnerActor)
+	h.World.Join(world.Actor{ID: GuestID(pubkey), Name: "オーナー", Role: world.RoleOwner, Pubkey: pubkey, RoomID: world.TownID, Pos: OwnerSpawn}, h.OwnerActor)
 }
 
 func clip(s string, n int) string {

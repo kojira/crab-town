@@ -28,8 +28,9 @@ type Bridge struct {
 	TickStale    time.Duration
 	Now          func() time.Time // nil = time.Now (tests fix it)
 
-	origin atomic.Uint64
-	tick   tickState
+	origin   atomic.Uint64
+	tick     tickState
+	visitors visitorTracker
 }
 
 // NewBridge wires cfg to w. Call Run to connect.
@@ -93,6 +94,12 @@ func (b *Bridge) sendLoop(ctx context.Context, queue <-chan Said) {
 func (b *Bridge) toSaid(ev world.Event) (Said, bool) {
 	var what string
 	switch ev.Type {
+	case "actor":
+		w, ok := b.visitorSaid(ev)
+		if !ok {
+			return Said{}, false
+		}
+		what = w
 	case "interact":
 		if ev.Furniture == nil || ev.Actor == nil {
 			return Said{}, false

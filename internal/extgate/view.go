@@ -2,7 +2,6 @@ package extgate
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/kojira/crab-town/internal/world"
@@ -59,6 +58,9 @@ func (b *Bridge) View() string {
 		here = z.Name
 	}
 	fmt.Fprintf(&sb, "現在地: %s %s\n", pos(me.Pos), here)
+	// people first: core may shorten a long said, and who is around matters
+	// more than the furniture list
+	sb.WriteString(actorsLine(s, me) + "\n")
 
 	sb.WriteString("ゾーン（名前 x範囲 y範囲）:")
 	for _, z := range r.Zones {
@@ -108,17 +110,5 @@ func (b *Bridge) View() string {
 		sb.WriteString("\n  " + k + ": " + strings.Join(byZone[k], " "))
 	}
 
-	var actors []string
-	for _, a := range s.Actors {
-		if a.RoomID != r.ID || a.Hidden || a.ID == me.ID {
-			continue
-		}
-		actors = append(actors, a.Name+pos(a.Pos))
-	}
-	slices.Sort(actors)
-	if len(actors) == 0 {
-		actors = []string{"なし"}
-	}
-	sb.WriteString("\n見える他のアクター: " + strings.Join(actors, " "))
 	return sb.String()
 }
