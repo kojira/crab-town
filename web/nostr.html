@@ -65,8 +65,8 @@
   body.narrow #chat { position:fixed; left:0; right:0; bottom:0; margin:0; max-width:none; z-index:5;
     background:#15171ccc; backdrop-filter:blur(4px); border-top:1px solid #444; }
   body.narrow #chatHead { display:flex; justify-content:space-between; align-items:center; padding:4px 10px; font-size:16px; }
-  body.narrow #log { font-size:17px; line-height:1.5; height:min(20vh, 180px); max-height:none; padding:0 10px 8px; }
-  body.narrow #log .t { font-size:13px; } body.narrow #log .system { font-size:15px; }
+  body.narrow #log { font-size:20px; line-height:1.5; height:min(20vh, 180px); max-height:none; padding:0 10px 8px; }
+  body.narrow #log .t { font-size:15px; } body.narrow #log .system { font-size:15px; }
   body.narrow #chat.focus #log { height:min(calc(var(--vv-h, 60vh) * .45), 360px); }
   body.narrow #chat.closed #log, body.narrow #chat.closed #newLines { display:none; }
   body.narrow #typing, body.narrow #talkHint { padding:0 10px; font-size:14px; } /* the input stays usable when closed */
@@ -75,7 +75,7 @@
 </style>
 </head>
 <body>
-<h1>⚡ crab-town <small style="font-size:14px;color:#889">via Nostr</small></h1>
+<h1>⚡ crab-town <small style="font-size:14px;color:#889">via Nostr</small> <span id="ver" style="font-size:12px;color:#667">v:dev</span></h1>
 <div id="bar">
   <button id="login">NIP-07 でログイン</button>
   <button class="cmd" id="toRoom" disabled>のすたろうの部屋へ</button>

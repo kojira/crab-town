@@ -107,7 +107,7 @@ function drawSpeech(a, x0, y0, now) {
   const s = speech[a.id];
   if (!s || now > s.until) { delete speech[a.id]; return; }
   const k = typeof window !== "undefined" && window.LABEL_SCALE > 1 ? window.LABEL_SCALE : 1;
-  const px = Math.round(14 * k), maxW = Math.min(T * 11 * k, cv.width - 12);
+  const px = Math.round(18 * k), maxW = Math.min(T * 11 * k, cv.width - 12);
   ctx.font = `bold ${px}px sans-serif`;
   const lines = CrabTalk.wrap(s.text, maxW, (t) => ctx.measureText(t).width); // whole text, never cut
   const lh = Math.round(px * 1.3);
