@@ -77,25 +77,22 @@ func TestFlowHelloBindSaidSayActivity(t *testing.T) {
 		t.Fatalf("empty say response = %v", r)
 	}
 
-	// activity started → walk to the study PC
+	// activity is a notice of a turn starting / ending: nothing moves
 	start, _ := w.Actor("nostarou")
 	cc.send(map[string]any{"m": "activity", "binding_id": testBinding, "activity_id": testActivity, "state": "started"})
-	waitFor(t, w, "actor at PC", func() bool {
-		a, _ := w.Actor("nostarou")
-		return a.Using == WorkFurniture && a.State == world.StateWorking
-	})
-	// ended → back where it was, idle
+	cc.expectQuiet(150 * time.Millisecond)
+	if a, _ := w.Actor("nostarou"); a.Pos != start.Pos || a.Using != start.Using || a.Target != nil {
+		t.Fatalf("activity started moved the actor: %+v -> %+v", start, a)
+	}
 	cc.send(map[string]any{"m": "activity", "binding_id": testBinding, "activity_id": testActivity, "state": "ended"})
-	waitFor(t, w, "actor back", func() bool {
-		a, _ := w.Actor("nostarou")
-		return a.Pos == start.Pos && a.Using == "" && a.Target == nil && a.State == world.StateIdle
-	})
-	// walking to the PC is the bridge's own doing: no said for it
-	cc.expectQuiet(100 * time.Millisecond)
+	cc.expectQuiet(150 * time.Millisecond)
+	if a, _ := w.Actor("nostarou"); a.Pos != start.Pos || a.Using != start.Using || a.Target != nil {
+		t.Fatalf("activity ended moved the actor: %+v -> %+v", start, a)
+	}
 }
 
-// A visitor using furniture is forwarded; after a turn the actor returns to it.
-func TestInteractSaidAndRestoreFurniture(t *testing.T) {
+// A visitor using furniture is forwarded; a turn does not move the actor away from it.
+func TestInteractSaidAndActivityKeepsFurniture(t *testing.T) {
 	fc := newFakeCore(t)
 	w, b := startBridge(t, fc)
 	cc := fc.accept()
@@ -113,10 +110,85 @@ func TestInteractSaidAndRestoreFurniture(t *testing.T) {
 	cc.send(map[string]any{"id": said["id"], "m": "ok", "seq": nil})
 
 	cc.send(map[string]any{"m": "activity", "binding_id": testBinding, "activity_id": testActivity, "state": "started"})
-	waitFor(t, w, "at PC", func() bool { a, _ := w.Actor("nostarou"); return a.Using == WorkFurniture })
-	cc.send(map[string]any{"m": "activity", "binding_id": testBinding, "activity_id": testActivity, "state": "ended"})
-	waitFor(t, w, "back at bookshelf", func() bool { a, _ := w.Actor("nostarou"); return a.Using == "bookshelf" })
-	cc.expectQuiet(100 * time.Millisecond)
+	cc.expectQuiet(150 * time.Millisecond) // no said: nothing happened in the world
+	if a, _ := w.Actor("nostarou"); a.Using != "bookshelf" {
+		t.Fatalf("activity took the actor off the bookshelf: %+v", a)
+	}
+}
+
+// A Nostr talk to the actor reaches core as a said that reports what happened,
+// where the actor is, and the operations crab-town accepts -- and nothing that
+// tells the agent what to do.
+func TestTalkSaidDescribesEventAndOperations(t *testing.T) {
+	fc := newFakeCore(t)
+	w, b := startBridge(t, fc)
+	cc := fc.accept()
+	cc.helloBind()
+	waitBound(t, b)
+
+	if err := w.Talk("nostr:abcdef0123456789", "guest", "nostarou", "元気？"); err != nil {
+		t.Fatal(err)
+	}
+	said := cc.recv()
+	text, _ := said["text"].(string)
+	t.Logf("said text:\n%s", text)
+	if o, _ := said["origin"].(string); !strings.HasPrefix(o, "crab-town:talk:") {
+		t.Fatalf("origin = %v", said["origin"])
+	}
+	wa, _ := w.Where("nostarou")
+	for _, want := range []string{
+		"出来事: nostr:abcdef0123456789（guest） が のすたろう に話しかけた", "本文: 元気？",
+		"の現在地: " + wa.String(), "今取れる操作:",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("said text lacks %q", want)
+		}
+	}
+	// the operations listed are exactly the dispatch table
+	ops := AgentOperations()
+	if len(ops) == 0 {
+		t.Fatal("no operations")
+	}
+	for _, op := range ops {
+		if !strings.Contains(text, "\n- "+op.Name+": ") {
+			t.Errorf("said text lacks operation %q", op.Name)
+		}
+	}
+	if n := strings.Count(text, "\n- "); n != len(ops) {
+		t.Errorf("listed %d operations, table has %d", n, len(ops))
+	}
+	// no instructions: crab-town reports, the agent decides
+	for _, bad := range []string{"してください", "返事", "返答", "しなさい", "すること", "べき"} {
+		if strings.Contains(text, bad) {
+			t.Errorf("said text tells the agent what to do (%q)", bad)
+		}
+	}
+	cc.send(map[string]any{"id": said["id"], "m": "ok", "seq": 3})
+
+	// a talk to someone else is not the agent's business
+	if err := w.Talk("nostr:abcdef0123456789", "guest", "labomi", "hi"); err != nil {
+		t.Fatal(err)
+	}
+	cc.expectQuiet(150 * time.Millisecond)
+}
+
+// Every operation listed is accepted, and nothing outside the list is.
+func TestOperationsTableIsWhatIsAccepted(t *testing.T) {
+	fc := newFakeCore(t)
+	_, b := startBridge(t, fc)
+	cc := fc.accept()
+	cc.helloBind()
+	waitBound(t, b)
+	for _, op := range AgentOperations() {
+		cc.send(map[string]any{"id": "op-" + op.Name, "m": op.Name, "binding_id": testBinding, "payload": map[string]any{"text": "x"}})
+		if r := cc.recv(); r["code"] == "unknown_message" {
+			t.Errorf("listed operation %q is not accepted: %v", op.Name, r)
+		}
+	}
+	cc.send(map[string]any{"id": "op-move", "m": "move", "binding_id": testBinding, "payload": map[string]any{}})
+	if r := cc.recv(); r["code"] != "unknown_message" {
+		t.Errorf("unlisted move: %v", r)
+	}
 }
 
 // Broken frames close the connection; the gateway then reconnects and says hello again.
@@ -173,21 +245,17 @@ func TestExactMaxFrameAccepted(t *testing.T) {
 	}
 }
 
-// Core going away: reconnect with backoff, hello again, activity resets.
+// Core going away: reconnect with backoff and hello again.
 func TestReconnectAfterCoreClose(t *testing.T) {
 	fc := newFakeCore(t)
-	w, b := startBridge(t, fc)
+	_, b := startBridge(t, fc)
 	cc := fc.accept()
 	cc.helloBind()
 	waitBound(t, b)
-	cc.send(map[string]any{"m": "activity", "binding_id": testBinding, "activity_id": testActivity, "state": "started"})
-	waitFor(t, w, "at PC", func() bool { a, _ := w.Actor("nostarou"); return a.Using == WorkFurniture })
 	cc.c.Close()
 	cc2 := fc.accept()
 	cc2.helloBind()
 	waitBound(t, b)
-	// the turn cannot outlive the connection: the actor went back
-	waitFor(t, w, "back from PC", func() bool { a, _ := w.Actor("nostarou"); return a.Using == "" && a.Target == nil })
 	waitConnects(t, b, 2)
 }
 

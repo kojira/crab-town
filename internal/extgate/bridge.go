@@ -5,34 +5,28 @@ import (
 	"fmt"
 	"log"
 	"strings"
-	"sync"
 	"sync/atomic"
 
 	"github.com/kojira/crab-town/internal/world"
 )
 
-// WorkFurniture is where the actor goes while core runs a turn.
-const WorkFurniture = "pc"
-
-// Bridge maps extgate traffic onto the world:
-//   - activity started → the actor walks to the study PC; ended → back to what it was doing
-//   - say → a speech bubble (display only; nothing is posted anywhere)
-//   - furniture interact / knock events in the world → said to core
+// Bridge maps extgate traffic onto the world, without deciding anything for
+// the agent:
+//   - world events (interact / knock / talk) -> said to core: what happened,
+//     where the actor is, and the operations crab-town accepts right now
+//   - say -> a speech bubble over the actor (also published as public state)
+//   - activity (turn started / ended) is only a notice; it moves nothing
 type Bridge struct {
 	World  *world.World
-	Actor  string // actor driven by activity / say
+	Actor  string // the agent's actor in the world
 	Client *Client
 
-	mu     sync.Mutex
-	active map[string]bool // activity ids currently started
-	saved  *world.Actor    // actor before the first started
-	self   map[string]int  // interacts caused by the bridge itself (furniture id → count)
 	origin atomic.Uint64
 }
 
 // NewBridge wires cfg to w. Call Run to connect.
 func NewBridge(w *world.World, cfg Config) *Bridge {
-	b := &Bridge{World: w, Actor: cfg.Actor, active: map[string]bool{}, self: map[string]int{}}
+	b := &Bridge{World: w, Actor: cfg.Actor}
 	b.Client = New(cfg, b)
 	return b
 }
@@ -84,34 +78,78 @@ func (b *Bridge) sendLoop(ctx context.Context, queue <-chan Said) {
 	}
 }
 
-// toSaid turns an interact / knock world event into a said, skipping
-// interactions the bridge caused itself (walking to the PC).
+// toSaid turns an interact / knock / talk world event into a said whose text
+// reports what happened and what the agent can do. It never says what to do.
 func (b *Bridge) toSaid(ev world.Event) (Said, bool) {
-	n := b.origin.Add(1)
-	origin := fmt.Sprintf("crab-town:%s:%d:%d", ev.Type, ev.Time.UnixNano(), n)
+	var what string
 	switch ev.Type {
 	case "interact":
 		if ev.Furniture == nil || ev.Actor == nil {
 			return Said{}, false
 		}
-		b.mu.Lock()
-		if ev.Actor.ID == b.Actor && b.self[ev.Furniture.ID] > 0 {
-			b.self[ev.Furniture.ID]--
-			b.mu.Unlock()
+		what = fmt.Sprintf("%s が %s で %s（%s）を使った",
+			ev.Actor.Name, b.place(ev.Actor.ID, ev.Room), ev.Furniture.Label, ev.Furniture.Function)
+		if ev.By != "" && ev.By != ev.Actor.ID {
+			what += "（操作: " + ev.By + "）"
+		}
+	case "knock":
+		door := ev.House
+		if door == "" {
+			door = ev.Room
+		}
+		what = fmt.Sprintf("%s が %s のドアをノックした", ev.By, door)
+		if m := strings.TrimSpace(ev.Message); m != "" {
+			what += "\n本文: " + m
+		}
+	case world.EventTalk:
+		if ev.To != b.Actor {
 			return Said{}, false
 		}
-		b.mu.Unlock()
-		text := fmt.Sprintf("[crab-town] %s が %s（%s）を使った（操作: %s）",
-			ev.Actor.Name, ev.Furniture.Label, ev.Furniture.Function, ev.By)
-		return Said{Origin: origin, Text: text, AuthorLabel: label(ev.By)}, true
-	case "knock":
-		text := fmt.Sprintf("[crab-town] %s が %s をノックした", ev.By, ev.Room)
-		if m := strings.TrimSpace(ev.Message); m != "" {
-			text += ": " + m
+		who := ev.By
+		if ev.Role != "" {
+			who += "（" + ev.Role + "）"
 		}
-		return Said{Origin: origin, Text: text, AuthorLabel: label(ev.By)}, true
+		to := ev.To
+		if wa, ok := b.World.Where(ev.To); ok {
+			to = wa.Actor
+		}
+		what = fmt.Sprintf("%s が %s に話しかけた（Nostr 経由、平文）\n本文: %s", who, to, ev.Message)
+	default:
+		return Said{}, false
 	}
-	return Said{}, false
+	n := b.origin.Add(1)
+	origin := fmt.Sprintf("crab-town:%s:%d:%d", ev.Type, ev.Time.UnixNano(), n)
+	return Said{Origin: origin, Text: b.describe(what), AuthorLabel: label(ev.By)}, true
+}
+
+// place is where id stands if it is an actor in the world, else the room.
+func (b *Bridge) place(id, room string) string {
+	if wa, ok := b.World.Where(id); ok {
+		return wa.String()
+	}
+	if room == "" {
+		return "(場所不明)"
+	}
+	return room
+}
+
+// describe frames one event: what happened, where the agent's actor is now,
+// and the operations crab-town accepts (generated from the dispatch table).
+func (b *Bridge) describe(what string) string {
+	var sb strings.Builder
+	sb.WriteString("[crab-town] 出来事: ")
+	sb.WriteString(what)
+	sb.WriteString("\n")
+	if wa, ok := b.World.Where(b.Actor); ok {
+		sb.WriteString("あなた（" + wa.Actor + "）の現在地: " + wa.String() + "\n")
+	} else {
+		sb.WriteString("あなたの現在地: 不明\n")
+	}
+	sb.WriteString("crab-town で今取れる操作:")
+	for _, op := range AgentOperations() {
+		sb.WriteString("\n- " + op.Name + ": " + op.Desc)
+	}
+	return sb.String()
 }
 
 // label makes an author_label core accepts (nonblank, <=100 chars, no control chars).
@@ -136,82 +174,9 @@ func (b *Bridge) OnSay(_, _, text string) error {
 	return b.World.Speak(b.Actor, text)
 }
 
-// OnActivity implements Handler.
-func (b *Bridge) OnActivity(_, _, activityID, state string) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	switch state {
-	case "started":
-		if b.active[activityID] {
-			return
-		}
-		b.active[activityID] = true
-		if len(b.active) == 1 {
-			b.startWorkLocked()
-		}
-	case "ended":
-		if !b.active[activityID] {
-			return
-		}
-		delete(b.active, activityID)
-		if len(b.active) == 0 {
-			b.restoreLocked()
-		}
-	}
-}
+// OnActivity implements Handler. A turn starting or ending is a notice from
+// core, not something the agent chose: the world does not react to it.
+func (b *Bridge) OnActivity(_, _, _, _ string) {}
 
-// OnDisconnect implements Handler: no turn can be running without core.
-func (b *Bridge) OnDisconnect() {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if len(b.active) > 0 {
-		b.active = map[string]bool{}
-		b.restoreLocked()
-	}
-}
-
-func (b *Bridge) startWorkLocked() {
-	a, ok := b.World.Actor(b.Actor)
-	if !ok {
-		log.Printf("extgate: actor %q not found", b.Actor)
-		return
-	}
-	b.saved = &a
-	if a.Using == WorkFurniture {
-		return // already at the PC
-	}
-	b.self[WorkFurniture]++
-	if err := b.World.Interact(b.Actor, b.Actor, WorkFurniture); err != nil {
-		b.self[WorkFurniture]--
-		log.Printf("extgate: activity: walk to %s: %v", WorkFurniture, err)
-	}
-}
-
-// restoreLocked returns the actor to what it was doing before the turn:
-// back to the furniture it was using, or back to the tile it stood on.
-func (b *Bridge) restoreLocked() {
-	s := b.saved
-	b.saved = nil
-	if s == nil {
-		return
-	}
-	var err error
-	switch {
-	case s.Using == WorkFurniture:
-		return
-	case s.Using != "":
-		b.self[s.Using]++
-		if err = b.World.Interact(b.Actor, b.Actor, s.Using); err != nil {
-			b.self[s.Using]--
-		}
-	default:
-		dest := s.Pos
-		if s.Target != nil {
-			dest = *s.Target
-		}
-		err = b.World.Move(b.Actor, b.Actor, dest)
-	}
-	if err != nil {
-		log.Printf("extgate: activity: restore: %v", err)
-	}
-}
+// OnDisconnect implements Handler. Nothing in the world depends on the link.
+func (b *Bridge) OnDisconnect() {}

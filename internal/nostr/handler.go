@@ -14,7 +14,7 @@ var (
 	ErrNotForUs  = errors.New("command is not addressed to this town")
 	ErrStale     = errors.New("created_at outside the accepted window")
 	ErrReplay    = errors.New("duplicate event id (replay)")
-	ErrGuestOnly = errors.New("forbidden: guests may only knock")
+	ErrGuestOnly = errors.New("forbidden: guests may only knock or talk")
 	ErrUnknown   = errors.New("unknown command")
 )
 
@@ -26,12 +26,14 @@ const (
 
 // Command is the JSON content of a KindCommand event.
 type Command struct {
-	Type    string `json:"type"`              // move | snapshot | knock
+	Type    string `json:"type"`              // move | snapshot | knock | talk
 	Actor   string `json:"actor,omitempty"`   // move: actor id (default: the owner's actor)
 	X       int    `json:"x,omitempty"`       // move
 	Y       int    `json:"y,omitempty"`       // move
 	Room    string `json:"room,omitempty"`    // knock: house id or room id
 	Message string `json:"message,omitempty"` // knock
+	Text    string `json:"text,omitempty"`    // talk (plain text, <= world.MaxTalk runes)
+	To      string `json:"to,omitempty"`      // talk: actor id (default: Handler.TalkTo)
 }
 
 // Result is what the handler decided for one command event.
@@ -50,6 +52,7 @@ type Handler struct {
 	Town       string        // this town's pubkey (hex): commands must p-tag it
 	Owner      string        // owner pubkey (hex): full rights
 	OwnerActor string        // world id the owner acts as (e.g. "nostarou")
+	TalkTo     string        // actor a talk goes to when "to" is omitted (e.g. "nostarou")
 	Window     time.Duration // accepted |now - created_at|
 	// NotBefore: events created before this (the process start) are dropped.
 	// The replay set lives in memory, and some relays re-deliver recent
@@ -143,6 +146,13 @@ func (h *Handler) Handle(ev *Event) Result {
 			by = h.OwnerActor
 		}
 		res.Err = h.World.Knock(by, cmd.Room, clip(cmd.Message, 280))
+	case "talk":
+		// anyone may talk; the sender is named by pubkey, the role says who it is
+		to := cmd.To
+		if to == "" {
+			to = h.TalkTo
+		}
+		res.Err = h.World.Talk(GuestID(ev.PubKey), res.Role, to, cmd.Text)
 	case "move":
 		if res.Role != RoleOwner {
 			res.Err = ErrGuestOnly

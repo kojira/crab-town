@@ -216,8 +216,8 @@ func errFrame(id, code string) map[string]any {
 func (c *Client) handle(k *conn, obj map[string]any) string {
 	m, _ := str(obj, "m")
 	id, hasID := reqID(obj)
-	if fn, ok := agentMessages[m]; ok {
-		return fn(c, k, obj, id, hasID)
+	if op, ok := lookupOperation(m); ok {
+		return op.handle(c, k, obj, id, hasID)
 	}
 	switch m {
 	case "bind":
@@ -257,22 +257,33 @@ func (c *Client) handle(k *conn, obj map[string]any) string {
 	}
 }
 
-// agentMessages are the core→gateway messages that carry something the agent
+// Operation is one core->gateway message that carries something the agent
 // chose to do (as opposed to protocol plumbing: bind, activity, responses).
-// handle dispatches through this table, and AgentMessages lists it, so what
-// crab-town tells the agent it can do is exactly what it accepts.
-var agentMessages = map[string]func(c *Client, k *conn, obj map[string]any, id string, hasID bool) string{
-	"say": (*Client).handleSay,
+type Operation struct {
+	Name   string
+	Desc   string // what it does, shown to the agent as-is
+	handle func(c *Client, k *conn, obj map[string]any, id string, hasID bool) string
 }
 
-// AgentMessages returns the agent-chosen messages this client accepts (sorted).
-func AgentMessages() []string {
-	out := make([]string, 0, len(agentMessages))
-	for m := range agentMessages {
-		out = append(out, m)
+// agentOperations: handle dispatches through this table and AgentOperations
+// lists it, so what crab-town tells the agent it can do is exactly what it
+// accepts.
+var agentOperations = []Operation{
+	{Name: "say", Desc: "自分の頭上に吹き出しで発言する（町の画面と Nostr の公開状態に出る）。payload: {\"text\": \"...\"}", handle: (*Client).handleSay},
+}
+
+// AgentOperations returns the agent-chosen operations this client accepts.
+func AgentOperations() []Operation {
+	return append([]Operation(nil), agentOperations...)
+}
+
+func lookupOperation(m string) (Operation, bool) {
+	for _, op := range agentOperations {
+		if op.Name == m {
+			return op, true
+		}
 	}
-	sort.Strings(out)
-	return out
+	return Operation{}, false
 }
 
 func (c *Client) handleSay(k *conn, obj map[string]any, id string, hasID bool) string {
