@@ -137,6 +137,9 @@ func (b *Bridge) toSaid(ev world.Event) (Said, bool) {
 		if ev.Role == world.RoleOwner {
 			caller = CallerOwner
 		}
+		b.tick.mu.Lock()
+		b.tick.lastTalkBy = ev.By
+		b.tick.mu.Unlock()
 	default:
 		return Said{}, false
 	}
@@ -203,9 +206,22 @@ func label(s string) string {
 	return s
 }
 
-// OnSay implements Handler: show it as a bubble over the actor.
+// OnSay implements Handler: show it as a bubble over the actor. While a talk
+// is recent (within TalkQuiet) the say is marked as answering that talker, so
+// viewers can tell "to you" from replies to someone else.
 func (b *Bridge) OnSay(_, _, text string) error {
-	return b.World.Speak(b.Actor, text)
+	return b.World.SpeakTo(b.Actor, text, b.replyTo())
+}
+
+// replyTo is the last talker if they talked within TalkQuiet, else "".
+func (b *Bridge) replyTo() string {
+	t := &b.tick
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.lastTalkBy == "" || t.lastTalk.IsZero() || b.clock().Sub(t.lastTalk) >= b.TalkQuiet {
+		return ""
+	}
+	return t.lastTalkBy
 }
 
 // OnActivity implements Handler. A turn starting or ending is a notice from

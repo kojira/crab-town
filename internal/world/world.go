@@ -150,9 +150,10 @@ type Event struct {
 	Furniture *Furniture `json:"furniture,omitempty"`
 	By        string     `json:"by,omitempty"`
 	Message   string     `json:"message,omitempty"`
-	House     string     `json:"house,omitempty"` // knock: the house knocked on
-	To        string     `json:"to,omitempty"`    // talk: the actor spoken to
-	Role      string     `json:"role,omitempty"`  // talk: owner | guest (as the caller was verified)
+	House     string     `json:"house,omitempty"`    // knock: the house knocked on
+	To        string     `json:"to,omitempty"`       // talk: the actor spoken to
+	Role      string     `json:"role,omitempty"`     // talk: owner | guest (as the caller was verified)
+	ReplyTo   string     `json:"reply_to,omitempty"` // say: the talker (by) the words answer
 	// occupancy events only: occupied private zones, and (per viewer) hidden zones
 	InUse       []string `json:"in_use,omitempty"`
 	HiddenZones []string `json:"hidden_zones,omitempty"`

@@ -130,7 +130,7 @@ func (b *Bridge) Run(ctx context.Context) {
 			}
 			// Nothing is encrypted: publish only what the public may see.
 			if ev, ok = b.world.FilterEvent("", ev); ok {
-				b.publish(ctx, ev, nil)
+				b.publish(ctx, ev, replyTags(ev))
 			}
 		}
 	}
@@ -183,4 +183,13 @@ func (b *Bridge) publish(ctx context.Context, content any, tags [][]string) {
 	for _, rc := range b.relays {
 		rc.send(ctx, []any{"EVENT", ev}) // best effort; disconnected relays skip
 	}
+}
+
+// replyTags marks a say that answers a talk: ["reply_to", <talker id>] (the
+// same id as the talk's "by"), so a viewer can show "→ あなた".
+func replyTags(ev world.Event) [][]string {
+	if ev.Type != world.EventSay || ev.ReplyTo == "" {
+		return nil
+	}
+	return [][]string{{"reply_to", ev.ReplyTo}}
 }
