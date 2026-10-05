@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>crab-town (Nostr)</title>
 <style>
   body { background:#1b1d23; color:#ddd; font-family:system-ui,sans-serif; margin:20px; }
@@ -11,8 +11,9 @@
   #bar { margin:8px 0; display:flex; gap:8px; flex-wrap:wrap; align-items:center; font-size:14px; }
   button { background:#2b2e38; color:#ffd84a; border:1px solid #555; padding:4px 10px; border-radius:4px; cursor:pointer; }
   button:disabled { color:#777; cursor:default; }
-  #talkForm { display:flex; gap:6px; }
-  #talkText { width:min(420px, 60vw); background:#22252d; color:#ddd; border:1px solid #555; border-radius:4px; padding:4px 8px; }
+  /* talk input sits right under the chat log, like a chat app */
+  #talkForm { display:flex; gap:6px; margin-top:6px; }
+  #talkText { flex:1; min-width:0; max-width:560px; background:#22252d; color:#ddd; border:1px solid #555; border-radius:4px; padding:4px 8px; }
   #status { margin-top:8px; font-size:14px; }
   #relays, #meta { font:12px monospace; color:#889; }
   #mapwrap { position:relative; }
@@ -32,7 +33,6 @@
   body.narrow { margin:8px; }
   body.narrow h1 { font-size:18px; margin:4px 0; }
   body.narrow #bar { gap:6px; font-size:13px; }
-  body.narrow #talkForm { flex:1 1 100%; } body.narrow #talkText { flex:1; width:auto; font-size:16px; }
   body.narrow #stage { overflow:hidden; touch-action:none; border:2px solid #444; }
   body.narrow #stage.dragging { cursor:grabbing; }
   body.narrow canvas { max-width:none; max-height:none; border:0; }
@@ -47,7 +47,9 @@
     background:#15171ccc; backdrop-filter:blur(4px); border-top:1px solid #444; }
   body.narrow #chatHead { display:flex; justify-content:space-between; align-items:center; padding:4px 10px; font-size:13px; }
   body.narrow #log { font-size:15px; line-height:1.5; height:min(22vh, 200px); max-height:none; padding:0 10px 8px; }
-  body.narrow #chat.closed #log { display:none; }
+  body.narrow #chat.closed #log { display:none; } /* the input stays usable when closed */
+  body.narrow #talkForm { margin:0; padding:6px 10px calc(8px + env(safe-area-inset-bottom, 0px)); border-top:1px solid #333; }
+  body.narrow #talkText { max-width:none; font-size:16px; padding:8px; } body.narrow #talk { padding:6px 14px; }
 </style>
 </head>
 <body>
@@ -58,8 +60,6 @@
   <button class="cmd" id="toGarden" disabled>庭へ</button>
   <button class="cmd" id="knock" disabled>ノック</button>
   <button id="resync">再同期</button>
-  <form id="talkForm"><input id="talkText" class="cmd" maxlength="280" placeholder="のすたろうに話しかける（平文・公開・280字まで）" disabled>
-    <button class="cmd" id="talk" disabled>話す</button></form>
   <span id="meta">you: <span id="who">-</span> / town: <span id="town">-</span></span>
 </div>
 <div id="jumps" aria-label="表示位置へジャンプ"></div>
@@ -69,7 +69,9 @@
 <div id="relays"></div>
 <div id="chat"><div id="chatHead"><span>💬 チャット (<span id="chatCount">0</span>)</span>
   <button type="button" id="chatToggle" aria-expanded="true">開閉</button></div>
-<div id="log" role="log" aria-live="polite"></div></div>
+<div id="log" role="log" aria-live="polite"></div>
+<form id="talkForm"><input id="talkText" class="cmd" maxlength="280" enterkeyhint="send" placeholder="のすたろうに話しかける（平文・公開・280字まで）" disabled>
+  <button class="cmd" id="talk" disabled>話す</button></form></div>
 <script src="config.js"></script>
 <script src="sprites.js"></script>
 <script src="furniture.js"></script>
