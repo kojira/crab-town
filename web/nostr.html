@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>crab-town (Nostr)</title>
+<style>
+  body { background:#1b1d23; color:#ddd; font-family:system-ui,sans-serif; margin:20px; }
+  canvas { image-rendering:pixelated; border:2px solid #444; display:block; cursor:crosshair;
+           max-width:calc(100vw - 44px); max-height:calc(100vh - 220px); width:auto; height:auto; }
+  #bar { margin:8px 0; display:flex; gap:8px; flex-wrap:wrap; align-items:center; font-size:14px; }
+  button { background:#2b2e38; color:#ffd84a; border:1px solid #555; padding:4px 10px; border-radius:4px; cursor:pointer; }
+  button:disabled { color:#777; cursor:default; }
+  #status { margin-top:8px; font-size:14px; }
+  #relays, #meta { font:12px monospace; color:#889; }
+  #log { margin-top:8px; font:12px monospace; color:#9a9; max-height:160px; overflow:auto; white-space:pre; }
+</style>
+</head>
+<body>
+<h1>⚡ crab-town <small style="font-size:14px;color:#889">via Nostr</small></h1>
+<div id="bar">
+  <button id="login">NIP-07 でログイン</button>
+  <button class="cmd" id="toRoom" disabled>のすたろうの部屋へ</button>
+  <button class="cmd" id="toGarden" disabled>庭へ</button>
+  <button class="cmd" id="knock" disabled>ノック</button>
+  <button id="resync">再同期</button>
+  <span id="meta">you: <span id="who">-</span> / town: <span id="town">-</span></span>
+</div>
+<canvas id="c" width="1856" height="640"></canvas>
+<div id="status">connecting...</div>
+<div id="relays"></div>
+<div id="log"></div>
+<script src="config.js"></script>
+<script src="sprites.js"></script>
+<script src="furniture.js"></script>
+<script src="floor.js"></script>
+<script src="props.js"></script>
+<script src="town.js"></script>
+<script src="render.js"></script>
+<script type="module" src="nostr.js"></script>
+</body>
+</html>
