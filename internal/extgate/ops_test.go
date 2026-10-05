@@ -281,12 +281,17 @@ func TestSaidMapHidesInvisibleZones(t *testing.T) {
 	cc.send(map[string]any{"id": said["id"], "m": "ok", "seq": 1})
 	checkMap(t, w, text)
 
-	// look returns the same map
+	// look returns the same map (said puts its actor line higher up)
 	r := invoke(cc, "look-1", "look", map[string]any{})
 	res, _ := r["result"].(map[string]any)
 	m, _ := res["map"].(string)
-	if r["m"] != "ok" || m == "" || !strings.Contains(text, m) {
+	if r["m"] != "ok" || m == "" {
 		t.Fatalf("look = %v", r)
+	}
+	for _, line := range strings.Split(m, "\n") {
+		if !strings.Contains(text, line+"\n") && !strings.HasSuffix(text, line) {
+			t.Errorf("look line not in said: %q", line)
+		}
 	}
 }
 

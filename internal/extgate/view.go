@@ -13,6 +13,23 @@ import (
 // see (other people's private rooms, an occupied bath) never appear -- nor
 // does anything inside them. Facts only; nothing tells the agent what to do.
 func (b *Bridge) View() string {
+	actors, body := b.viewParts()
+	if actors == "" {
+		return body
+	}
+	// title, 現在地, then the people, then the rest
+	l := strings.SplitN(body, "\n", 3)
+	if len(l) < 3 {
+		return body + "\n" + actors
+	}
+	return l[0] + "\n" + l[1] + "\n" + actors + "\n" + l[2]
+}
+
+// viewParts renders the map as the line of visible actors and the rest (title,
+// position, zones, doors, furniture). describe puts the actors line near the
+// top of a said and the long rest last, after the operations: core passes on
+// only the first part of a long said. actors is "" when the map is unknown.
+func (b *Bridge) viewParts() (actors, body string) {
 	s := b.World.ViewSnapshot(b.Actor)
 	var me *world.Actor
 	for _, a := range s.Actors {
@@ -21,7 +38,7 @@ func (b *Bridge) View() string {
 		}
 	}
 	if me == nil {
-		return "地図: 不明（あなたのアクターが町にいない）"
+		return "", "地図: 不明（あなたのアクターが町にいない）"
 	}
 	var r *world.Room
 	for _, rm := range s.Rooms {
@@ -30,7 +47,7 @@ func (b *Bridge) View() string {
 		}
 	}
 	if r == nil {
-		return "地図: 不明"
+		return "", "地図: 不明"
 	}
 	hidden := map[string]bool{}
 	for _, id := range r.HiddenZones {
@@ -58,10 +75,6 @@ func (b *Bridge) View() string {
 		here = z.Name
 	}
 	fmt.Fprintf(&sb, "現在地: %s %s\n", pos(me.Pos), here)
-	// people first: core may shorten a long said, and who is around matters
-	// more than the furniture list
-	sb.WriteString(actorsLine(s, me) + "\n")
-
 	sb.WriteString("ゾーン（名前 x範囲 y範囲）:")
 	for _, z := range r.Zones {
 		if hidden[z.ID] {
@@ -110,5 +123,5 @@ func (b *Bridge) View() string {
 		sb.WriteString("\n  " + k + ": " + strings.Join(byZone[k], " "))
 	}
 
-	return sb.String()
+	return actorsLine(s, me), sb.String()
 }

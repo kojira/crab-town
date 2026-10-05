@@ -70,6 +70,36 @@ func TestOwnerInSameRoomIsInSaidAndLook(t *testing.T) {
 	}
 }
 
+// Every said carries, within what core passes on, where the agent is, who it
+// can see and every operation it can call (each with its payload shape); the
+// long furniture map may come after the cut.
+func TestSaidHeadHasPlaceActorsAndOperations(t *testing.T) {
+	w := world.NewDefault()
+	b := &Bridge{World: w, Actor: "nostarou"}
+	joinOwner(t, w, world.Pos{X: 47, Y: 3})
+	for i := 0; i < 5; i++ { // a full "最近の出来事" in tick
+		long := strings.Repeat("あ", world.MaxTalk)
+		if _, ok := b.toSaid(world.Event{Type: world.EventTalk, By: ownerID, To: "nostarou", Role: "owner", Message: long}); !ok {
+			t.Fatal("talk not said")
+		}
+	}
+	talk, _ := b.toSaid(world.Event{Type: world.EventTalk, By: ownerID, To: "nostarou", Role: "owner", Message: strings.Repeat("い", world.MaxTalk)})
+	want := []string{"あなた（のすたろう）の現在地: nostarou-house / リビング (48,3)", "オーナー[オーナー](47,3)", "取れる操作"}
+	for _, op := range b.Operations() {
+		want = append(want, "- "+op.Name+": ")
+	}
+	for name, text := range map[string]string{"talk": talk.Text, "tick": b.tickSaid().Text} {
+		for _, s := range want {
+			if !strings.Contains(head(text), s) {
+				t.Errorf("%s: %q not within the first %d chars (len %d)", name, s, coreRenderLimit, len([]rune(text)))
+			}
+		}
+		if h := head(text); !strings.Contains(h[max(strings.Index(h, "\n- move: "), 0):], "）\n") {
+			t.Errorf("%s: move payload cut", name)
+		}
+	}
+}
+
 // An actor in a zone nostarou may not see (labomi's bedroom) is not listed,
 // neither the owner avatar nor a resident.
 func TestActorInInvisibleZoneIsNotListed(t *testing.T) {

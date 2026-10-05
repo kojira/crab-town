@@ -152,7 +152,8 @@ func (b *Bridge) place(id, room string) string {
 }
 
 // describe frames one event: what happened, where the agent's actor is now,
-// and the operations crab-town accepts (generated from the dispatch table).
+// who it can see, the operations crab-town accepts (generated from the
+// dispatch table), then the map.
 func (b *Bridge) describe(what string) string {
 	var sb strings.Builder
 	sb.WriteString("[crab-town] 出来事: ")
@@ -163,10 +164,16 @@ func (b *Bridge) describe(what string) string {
 	} else {
 		sb.WriteString("あなたの現在地: 不明\n")
 	}
-	sb.WriteString(b.View() + "\n")
+	// who is around and what can be done first, the long map last: core
+	// passes on only the first part of a long said
+	actors, body := b.viewParts()
+	if actors != "" {
+		sb.WriteString(actors + "\n")
+	}
 	sb.WriteString("このターンであなたが書いた本文は、頭上の吹き出しとして町の画面と Nostr の公開状態に出る\n")
 	sb.WriteString("crab-town で今取れる操作（ツールとして呼べる）:")
 	sb.WriteString(Listing(b.Operations()))
+	sb.WriteString("\n" + body)
 	return sb.String()
 }
 
