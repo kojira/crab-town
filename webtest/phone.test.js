@@ -73,7 +73,8 @@ test("the knock button has a house picker, not a fixed nostarou-house", () => {
   // phone text sizes: chat 17px+ (bigger than the 16px controls), status / buttons 15px
   const css = html.slice(html.indexOf("<style>"), html.indexOf("</style>"));
   const logPx = Number((css.match(/body\.narrow #log \{[^}]*font-size:(\d+)px/) || [])[1]);
-  assert.ok(logPx >= 17, "phone chat log font-size >= 17px, got " + logPx);
+  assert.ok(logPx >= 20, "phone chat log font-size >= 20px, got " + logPx);
+  assert.match(html, /id="ver"[^>]*>v:dev</); // Pages build stamps the commit here
   const widePx = Number((css.match(/\n  #log \{[^}]*font:(\d+)px/) || [])[1]);
   assert.ok(widePx >= 16, "wide chat log font >= 16px, got " + widePx);
   assert.match(css, /body\.narrow #status \{[^}]*font-size:15px/);
