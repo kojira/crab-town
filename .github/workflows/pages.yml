@@ -29,6 +29,10 @@ jobs:
           cp web/*.js web/nostr.html _site/
           rm _site/ws.js
           cp web/nostr.html _site/index.html
+          # cache buster: Pages serves with max-age=600, so pin every local script to this commit
+          v="${GITHUB_SHA::7}"
+          sed -i -E "s#<script( type=\"module\")? src=\"([a-z]+\.js)\"#<script\1 src=\"\2?v=$v\"#g" _site/index.html _site/nostr.html
+          grep -c "?v=$v" _site/index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
       - id: deploy

@@ -103,8 +103,8 @@ func labomiFurniture() []*Furniture {
 		deco("fridge", KindFridge, "冷蔵庫", 6, 1, 1, 2),
 		flat("kitchenmat", KindKitchenMat, "キッチンマット", 1, 2, 3, 1),
 		deco("table", KindTable, "ダイニングテーブル", 3, 4, 2, 2),
-		deco("chair1", KindChair, "椅子", 2, 4, 1, 1),
-		deco("chair2", KindChair, "椅子", 5, 5, 1, 1),
+		sofa(use("chair1", KindChair, "椅子", "rest", StateIdle, 2, 4, 1, 1, Pos{1, 4}), Pos{2, 4}),
+		sofa(use("chair2", KindChair, "椅子", "rest", StateIdle, 5, 5, 1, 1, Pos{6, 5}), Pos{5, 5}),
 		use("window", KindWindow, "窓", "timeline", StateTalking, 10, 0, 4, 1, Pos{11, 1}),
 		flat("rug", KindHeartRug, "ハートのラグ", 10, 2, 4, 2),
 		sofa(use("sofa", KindPinkSofa, "ピンクのソファ", "visitors", StateTalking, 10, 5, 4, 2, Pos{11, 4}), Pos{11, 5}),
@@ -121,7 +121,7 @@ func labomiFurniture() []*Furniture {
 		deco("hallplant", KindPlant, "観葉植物", 1, 10, 1, 1),
 		// 自室
 		use("pc", KindLaptop, "ノートPC", "work-container", StateWorking, 1, 13, 2, 1, Pos{1, 14}),
-		use("bed", KindPinkBed, "ベッド", "standby", StateAway, 1, 15, 2, 3, Pos{3, 16}),
+		sofa(use("bed", KindPinkBed, "ベッド", "standby", StateAway, 1, 15, 2, 3, Pos{3, 16}), Pos{1, 16}), // lie on the bed
 		deco("dresser", KindDresser, "ドレッサー", 6, 13, 2, 1),
 		flat("heartrug", KindHeartRug, "ハートのラグ", 4, 16, 3, 2),
 		deco("plush2", KindPlush, "ぬいぐるみ", 7, 18, 1, 1),

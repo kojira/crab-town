@@ -88,10 +88,10 @@ func defaultFurniture() []*Furniture {
 		deco("kitchentrash", KindTrash, "ゴミ箱", 6, 4, 1, 1),
 		// dining
 		deco("table", KindTable, "ダイニングテーブル", 15, 2, 3, 2),
-		deco("chair1", KindChair, "椅子", 14, 2, 1, 1),
-		deco("chair2", KindChair, "椅子", 14, 3, 1, 1),
-		deco("chair3", KindChair, "椅子", 18, 2, 1, 1),
-		deco("chair4", KindChair, "椅子", 18, 3, 1, 1),
+		{ID: "chair1", Kind: KindChair, Label: "椅子", Function: "rest", Pos: Pos{14, 2}, Size: Size{1, 1}, Access: Pos{13, 2}, Seat: &Pos{14, 2}, State: StateIdle},
+		{ID: "chair2", Kind: KindChair, Label: "椅子", Function: "rest", Pos: Pos{14, 3}, Size: Size{1, 1}, Access: Pos{13, 3}, Seat: &Pos{14, 3}, State: StateIdle},
+		{ID: "chair3", Kind: KindChair, Label: "椅子", Function: "rest", Pos: Pos{18, 2}, Size: Size{1, 1}, Access: Pos{19, 2}, Seat: &Pos{18, 2}, State: StateIdle},
+		{ID: "chair4", Kind: KindChair, Label: "椅子", Function: "rest", Pos: Pos{18, 3}, Size: Size{1, 1}, Access: Pos{19, 3}, Seat: &Pos{18, 3}, State: StateIdle},
 		deco("clock", KindClock, "掛け時計", 16, 0, 1, 1), // wall-mounted
 		deco("sideboard", KindSideboard, "食器棚", 19, 1, 2, 1),
 		deco("diningplant", KindPlant, "観葉植物", 20, 4, 1, 1),
@@ -118,7 +118,7 @@ func defaultFurniture() []*Furniture {
 		// hallway
 		deco("hallplant", KindPlant, "観葉植物", 30, 10, 1, 1),
 		// bedroom
-		{ID: "bed", Kind: KindBed, Label: "ベッド", Function: "standby", Pos: Pos{1, 14}, Size: Size{2, 3}, Access: Pos{3, 15}, State: StateAway},
+		{ID: "bed", Kind: KindBed, Label: "ベッド", Function: "standby", Pos: Pos{1, 14}, Size: Size{2, 3}, Access: Pos{3, 15}, Seat: &Pos{1, 15}, State: StateAway},
 		deco("nightstand", KindNightstand, "ナイトテーブル", 3, 14, 1, 1),
 		deco("wardrobe", KindWardrobe, "クローゼット", 6, 13, 2, 1),
 		flat("bedrug", KindRug, "ラグ", 4, 16, 3, 2),

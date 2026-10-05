@@ -122,12 +122,20 @@ function drawSpeech(a, x0, y0, now) {
 }
 
 // Sitting: the actor uses a sofa (it stands on the sofa's seat tile).
-const SIT_KINDS = { sofa: 1, pinksofa: 1 };
+const SIT_KINDS = { sofa: 1, pinksofa: 1, chair: 1 };
 const SIT_LEGS = ["..LLLLLLLLLL....", "..BB......BB...."];
 function isSitting(a) {
   if (!a.using) return false;
   const r = rooms[a.room], f = r && r.furniture.find(x => x.id === a.using);
   return !!(f && SIT_KINDS[f.kind]);
+}
+
+// Lying: the actor uses a bed (it is on the bed's seat tile).
+const LIE_KINDS = { bed: 1, pinkbed: 1, guestbed: 1 };
+function isLying(a) {
+  if (!a.using) return false;
+  const r = rooms[a.room], f = r && r.furniture.find(x => x.id === a.using);
+  return !!(f && LIE_KINDS[f.kind]);
 }
 
 function drawActor(a, now) {
@@ -147,7 +155,12 @@ function drawActor(a, now) {
   if (avatar) CrabAvatar.draw(ctx, a, x0, y0 + bob, T);
   else {
     const sp = spriteFor(a);
-    if (!moving && isSitting(a)) { // on the sofa: body lower, knees forward
+    if (!moving && isLying(a)) { // on the bed: the whole body turned on its side
+      ctx.save(); ctx.translate(x0 + T / 2, y0 + T / 2); ctx.rotate(-Math.PI / 2);
+      drawSprite(sp.body, sp.pal, -T / 2, -T / 2 - 4 * P, false);
+      drawSprite(sp.legs[0], sp.pal, -T / 2, -T / 2 + 9 * P, false);
+      ctx.restore();
+    } else if (!moving && isSitting(a)) { // on the sofa: body lower, knees forward
       drawSprite(sp.body, sp.pal, x0, y0 + 2 * P, v.flip);
       drawSprite(SIT_LEGS, sp.pal, x0, y0 + 13 * P, v.flip);
     } else {
