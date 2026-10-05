@@ -49,8 +49,11 @@ function apply(ev) {
     for (const a of Object.values(actors)) if (a.room === ev.room && !a.hidden && inHidden(r, a.pos)) a.hidden = true;
   } else if (ev.type === "knock") {
     say(`knock: ${ev.by} → ${ev.house || ev.room} ${ev.message || ""}`);
-  } else if (ev.type === "say" && ev.actor && typeof speech !== "undefined") {
-    speech[ev.actor.id] = { text: ev.message || "", until: performance.now() + SPEECH_MS };
+  } else if (ev.type === "talk") {
+    say(`talk: ${ev.by}${ev.role ? " (" + ev.role + ")" : ""} → ${ev.to}: ${ev.message || ""}`);
+  } else if (ev.type === "say" && ev.actor) {
+    say(`say: ${ev.actor.name || ev.actor.id}: ${ev.message || ""}`);
+    if (typeof speech !== "undefined") speech[ev.actor.id] = { text: ev.message || "", until: performance.now() + SPEECH_MS };
   } else if (ev.type === "result") {
     if (!me || ev.p === me) say(`${ev.cmd}: ${ev.ok ? "ok" : "NG " + ev.error} (${ev.role})`);
   }
@@ -125,7 +128,7 @@ async function login() {
   if (!window.nostr) { say("NIP-07 拡張が見つからない（閲覧のみ）"); return; }
   try { me = await window.nostr.getPublicKey(); } catch (e) { say("NIP-07: " + e); return; }
   $("who").textContent = me.slice(0, 12) + "…";
-  for (const b of document.querySelectorAll("button.cmd")) b.disabled = false;
+  for (const b of document.querySelectorAll(".cmd")) b.disabled = false;
 }
 
 cv.addEventListener("click", (e) => {
@@ -140,6 +143,15 @@ $("toRoom").onclick = () => send({ type: "move", ...ROOM_SPOT });
 $("toGarden").onclick = () => send({ type: "move", x: 24, y: 4 });
 $("knock").onclick = () => send({ type: "knock", room: "nostarou-house", message: "こんにちは" });
 $("resync").onclick = () => send({ type: "snapshot" });
+// talk: plain text, public, up to 280 characters (the town refuses longer)
+$("talkForm").onsubmit = (e) => {
+  e.preventDefault();
+  const text = $("talkText").value.trim();
+  if (!text) return;
+  if ([...text].length > 280) { say("talk: 280文字まで"); return; }
+  send({ type: "talk", text });
+  $("talkText").value = "";
+};
 
 if (!TOWN || !/^[0-9a-f]{64}$/.test(TOWN) || RELAYS.length === 0) {
   statusEl.textContent = "town pubkey / relays not configured (config.js or ?town=&relays=)";

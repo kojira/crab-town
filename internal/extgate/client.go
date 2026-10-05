@@ -216,6 +216,9 @@ func errFrame(id, code string) map[string]any {
 func (c *Client) handle(k *conn, obj map[string]any) string {
 	m, _ := str(obj, "m")
 	id, hasID := reqID(obj)
+	if op, ok := lookupOperation(m); ok {
+		return op.handle(c, k, obj, id, hasID)
+	}
 	switch m {
 	case "bind":
 		bid, _ := str(obj, "binding_id")
@@ -232,23 +235,6 @@ func (c *Client) handle(k *conn, obj map[string]any) string {
 		}
 		k.bindings[bid] = addr
 		k.mu.Unlock()
-		return c.reply(k, true, map[string]any{"id": id, "m": "ok"})
-	case "say":
-		bid, _ := str(obj, "binding_id")
-		payload, okP := obj["payload"].(map[string]any)
-		if !hasID || !validUUID(bid) || !okP {
-			return c.reply(k, hasID, errFrame(id, "bad_request"))
-		}
-		text, okT := nonempty(payload, "text")
-		k.mu.Lock()
-		addr, bound := k.bindings[bid]
-		k.mu.Unlock()
-		if !okT || !bound {
-			return c.reply(k, true, errFrame(id, "external_rejected"))
-		}
-		if err := c.handler.OnSay(bid, addr, text); err != nil {
-			return c.reply(k, true, errFrame(id, "external_rejected"))
-		}
 		return c.reply(k, true, map[string]any{"id": id, "m": "ok"})
 	case "activity":
 		bid, _ := str(obj, "binding_id")
@@ -269,6 +255,54 @@ func (c *Client) handle(k *conn, obj map[string]any) string {
 	default: // hello/said from core, unknown m (turn_failed, invoke, ...)
 		return c.reply(k, hasID, errFrame(id, "unknown_message"))
 	}
+}
+
+// Operation is one core->gateway message that carries something the agent
+// chose to do (as opposed to protocol plumbing: bind, activity, responses).
+type Operation struct {
+	Name   string
+	Desc   string // what it does, shown to the agent as-is
+	handle func(c *Client, k *conn, obj map[string]any, id string, hasID bool) string
+}
+
+// agentOperations: handle dispatches through this table and AgentOperations
+// lists it, so what crab-town tells the agent it can do is exactly what it
+// accepts.
+var agentOperations = []Operation{
+	{Name: "say", Desc: "自分の頭上に吹き出しで発言する（町の画面と Nostr の公開状態に出る）。payload: {\"text\": \"...\"}", handle: (*Client).handleSay},
+}
+
+// AgentOperations returns the agent-chosen operations this client accepts.
+func AgentOperations() []Operation {
+	return append([]Operation(nil), agentOperations...)
+}
+
+func lookupOperation(m string) (Operation, bool) {
+	for _, op := range agentOperations {
+		if op.Name == m {
+			return op, true
+		}
+	}
+	return Operation{}, false
+}
+
+func (c *Client) handleSay(k *conn, obj map[string]any, id string, hasID bool) string {
+	bid, _ := str(obj, "binding_id")
+	payload, okP := obj["payload"].(map[string]any)
+	if !hasID || !validUUID(bid) || !okP {
+		return c.reply(k, hasID, errFrame(id, "bad_request"))
+	}
+	text, okT := nonempty(payload, "text")
+	k.mu.Lock()
+	addr, bound := k.bindings[bid]
+	k.mu.Unlock()
+	if !okT || !bound {
+		return c.reply(k, true, errFrame(id, "external_rejected"))
+	}
+	if err := c.handler.OnSay(bid, addr, text); err != nil {
+		return c.reply(k, true, errFrame(id, "external_rejected"))
+	}
+	return c.reply(k, true, map[string]any{"id": id, "m": "ok"})
 }
 
 func (c *Client) reply(k *conn, send bool, v map[string]any) string {

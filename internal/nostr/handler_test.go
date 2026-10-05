@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -226,5 +227,33 @@ func TestEventsBeforeStartAreRejected(t *testing.T) {
 	}
 	if res := f.h.Handle(f.cmd(t, f.owner, bedroom, -5*time.Second)); res.Err != nil {
 		t.Fatalf("post-start event rejected: %+v", res)
+	}
+}
+
+// Anyone may talk; the talk reaches the world as a talk event naming the sender.
+func TestGuestAndOwnerMayTalk(t *testing.T) {
+	f := newFixture(t)
+	f.h.TalkTo = "nostarou"
+	evs, cancel := f.h.World.Subscribe()
+	defer cancel()
+	for _, c := range []struct {
+		key  *btcec.PrivateKey
+		role string
+	}{{f.guest, RoleGuest}, {f.owner, RoleOwner}} {
+		res := f.h.Handle(f.cmd(t, c.key, `{"type":"talk","text":"こんにちは"}`, 0))
+		if res.Err != nil || res.Role != c.role || res.Cmd != "talk" || !res.Reply {
+			t.Fatalf("%s talk: %+v", c.role, res)
+		}
+		ev := <-evs
+		if ev.Type != world.EventTalk || ev.By != GuestID(PubHex(c.key)) || ev.Role != c.role || ev.To != "nostarou" || ev.Message != "こんにちは" {
+			t.Fatalf("%s talk event: %+v", c.role, ev)
+		}
+	}
+	long := `{"type":"talk","text":"` + strings.Repeat("あ", world.MaxTalk+1) + `"}`
+	if res := f.h.Handle(f.cmd(t, f.guest, long, 0)); !errors.Is(res.Err, world.ErrTooLong) {
+		t.Fatalf("too long talk: %+v", res)
+	}
+	if res := f.h.Handle(f.cmd(t, f.guest, `{"type":"talk","text":""}`, 0)); !errors.Is(res.Err, world.ErrBadRequest) {
+		t.Fatalf("empty talk: %+v", res)
 	}
 }

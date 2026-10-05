@@ -23,6 +23,7 @@ type Config struct {
 	KeyFile    string        // crab-town's own key (0600, created on first run)
 	Owner      string        // owner pubkey hex
 	OwnerActor string        // world actor the owner acts as
+	TalkTo     string        // actor a talk goes to by default (CRAB_NOSTR_TALK_TO)
 	Window     time.Duration // accepted created_at skew
 }
 
@@ -32,7 +33,7 @@ func LoadConfig(getenv func(string) string) (*Config, error) {
 	if kf == "" {
 		return nil, nil
 	}
-	c := &Config{KeyFile: kf, Relays: DefaultRelays, OwnerActor: "nostarou", Window: 2 * time.Minute}
+	c := &Config{KeyFile: kf, Relays: DefaultRelays, OwnerActor: "nostarou", TalkTo: "nostarou", Window: 2 * time.Minute}
 	if v := getenv("CRAB_NOSTR_RELAYS"); v != "" {
 		c.Relays = nil
 		for _, r := range strings.Split(v, ",") {
@@ -56,6 +57,9 @@ func LoadConfig(getenv func(string) string) (*Config, error) {
 	}
 	if v := getenv("CRAB_NOSTR_OWNER_ACTOR"); v != "" {
 		c.OwnerActor = v
+	}
+	if v := getenv("CRAB_NOSTR_TALK_TO"); v != "" {
+		c.TalkTo = v
 	}
 	if v := getenv("CRAB_NOSTR_WINDOW"); v != "" {
 		d, err := time.ParseDuration(v)
@@ -91,7 +95,7 @@ func NewBridge(w *world.World, cfg Config) (*Bridge, string, error) {
 	}
 	town := PubHex(key)
 	b := &Bridge{cfg: cfg, key: key, world: w}
-	b.handler = &Handler{World: w, Town: town, Owner: cfg.Owner, OwnerActor: cfg.OwnerActor, Window: cfg.Window, NotBefore: time.Now()}
+	b.handler = &Handler{World: w, Town: town, Owner: cfg.Owner, OwnerActor: cfg.OwnerActor, TalkTo: cfg.TalkTo, Window: cfg.Window, NotBefore: time.Now()}
 	for _, u := range cfg.Relays {
 		rc := &relayConn{url: u, onEvent: b.onCommand}
 		rc.filter = func() map[string]any {

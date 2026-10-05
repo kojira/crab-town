@@ -11,6 +11,8 @@
   #bar { margin:8px 0; display:flex; gap:8px; flex-wrap:wrap; align-items:center; font-size:14px; }
   button { background:#2b2e38; color:#ffd84a; border:1px solid #555; padding:4px 10px; border-radius:4px; cursor:pointer; }
   button:disabled { color:#777; cursor:default; }
+  #talkForm { display:flex; gap:6px; }
+  #talkText { width:min(420px, 60vw); background:#22252d; color:#ddd; border:1px solid #555; border-radius:4px; padding:4px 8px; }
   #status { margin-top:8px; font-size:14px; }
   #relays, #meta { font:12px monospace; color:#889; }
   #log { margin-top:8px; font:12px monospace; color:#9a9; max-height:160px; overflow:auto; white-space:pre; }
@@ -24,6 +26,8 @@
   <button class="cmd" id="toGarden" disabled>庭へ</button>
   <button class="cmd" id="knock" disabled>ノック</button>
   <button id="resync">再同期</button>
+  <form id="talkForm"><input id="talkText" class="cmd" maxlength="280" placeholder="のすたろうに話しかける（平文・公開・280字まで）" disabled>
+    <button class="cmd" id="talk" disabled>話す</button></form>
   <span id="meta">you: <span id="who">-</span> / town: <span id="town">-</span></span>
 </div>
 <canvas id="c" width="1856" height="640"></canvas>
