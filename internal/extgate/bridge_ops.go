@@ -31,8 +31,8 @@ func (b *Bridge) Operations() []Operation {
 	sort.Slice(usable, func(i, j int) bool { return usable[i].ID < usable[j].ID })
 
 	ops := []Operation{{
-		Name: "look",
-		Desc: "今の自分から見える範囲の地図（現在地・ゾーン・ドア・家具・他のアクター）をテキストで返す。町は何も変わらない",
+		Name:  "look",
+		Desc:  "今の自分から見える範囲の地図（現在地・ゾーン・ドア・家具・他のアクター）をテキストで返す。町は何も変わらない",
 		Input: map[string]any{"type": "object", "properties": map[string]any{}},
 		Run: func(map[string]any) (any, error) {
 			return map[string]any{"map": b.View()}, nil
