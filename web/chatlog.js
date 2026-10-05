@@ -26,7 +26,7 @@ const CrabChat = (() => {
       const h = (ctx.houses || []).find(x => x.id === ev.house);
       const by = ctx.selfGuestId && ev.by === ctx.selfGuestId ? "あなた" : String(ev.by || "").startsWith("nostr:") ? "来客 " + short(ev.by) : ev.by;
       let text = `${by} → ${h ? h.label : ev.house || ev.room} ${ev.message || ""}`.trim();
-      if (h && !h.reachable) text += "（今は誰にも届かない・町の出来事として記録だけ）";
+      if (h && !h.reachable) text += `（${h.ownerName}は今つながっていないので届かない。町の出来事として記録だけ）`;
       return { kind: "system", who: "ノック", text };
     }
     return null;
