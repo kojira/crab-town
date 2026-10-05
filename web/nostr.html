@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>crab-town (Nostr)</title>
 <style>
+  html { -webkit-text-size-adjust:100%; text-size-adjust:100%; }
+  /* iOS Safari zooms in on focus when a form control's text is under 16px:
+     keep every control at 16px at every width (no maximum-scale / user-scalable=no) */
+  input, select, textarea { font-size:16px; }
   body { background:#1b1d23; color:#ddd; font-family:system-ui,sans-serif; margin:20px; }
   canvas { image-rendering:pixelated; border:2px solid #444; display:block; cursor:crosshair;
            max-width:calc(100vw - 44px); max-height:calc(100vh - 220px); width:auto; height:auto; }
@@ -45,7 +49,7 @@
   body.narrow #bar, body.narrow #jumps { flex-wrap:nowrap; overflow-x:auto; white-space:nowrap; scrollbar-width:none; }
   body.narrow #bar { gap:6px; font-size:15px; margin:4px 0; }
   body.narrow #bar > * { flex:none; }
-  body.narrow button, body.narrow select { font-size:15px; padding:7px 11px; }
+  body.narrow button { font-size:15px; padding:7px 11px; } body.narrow select { font-size:16px; padding:7px 11px; }
   body.narrow #meta { font-size:13px; }
   body.narrow #stage { overflow:hidden; touch-action:none; border:2px solid #444; }
   body.narrow #stage.dragging { cursor:grabbing; }
