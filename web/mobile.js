@@ -40,7 +40,10 @@ const CrabView = (() => {
     const c = content();
     st.mScale = V.minimapScale(townW(), townH(), Math.min(140, stage.clientWidth * 0.4), 60);
     mini.width = townW() * st.mScale; mini.height = townH() * st.mScale;
-    if (old !== st.tile) scrollTo({ x: keep.x * st.tile / old, y: keep.y * st.tile / old });
+    if (old !== st.tile) { // keep the same tile in the middle of the view
+      const k = st.tile / old, hw = stage.clientWidth / 2, hh = stage.clientHeight / 2;
+      scrollTo({ x: (keep.x + hw) * k - hw, y: (keep.y + hh) * k - hh });
+    }
     if (c.w <= stage.clientWidth) scrollTo({ x: 0, y: 0 });
   }
 

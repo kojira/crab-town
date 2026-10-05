@@ -37,6 +37,7 @@
   body.narrow #stage.dragging { cursor:grabbing; }
   body.narrow canvas { max-width:none; max-height:none; border:0; }
   body.narrow #jumps { display:flex; gap:6px; flex-wrap:wrap; margin:6px 0; }
+  body.narrow #jumps::before { content:"見る:"; align-self:center; font-size:12px; color:#889; }
   body.narrow #jumps button { color:#cde; padding:6px 10px; }
   body.narrow #minimap { display:block; position:absolute; right:6px; top:6px; border:1px solid #ffd84a99;
     background:#000a; image-rendering:auto; cursor:pointer; z-index:2; }
@@ -45,7 +46,7 @@
   body.narrow #chat { position:fixed; left:0; right:0; bottom:0; margin:0; max-width:none; z-index:5;
     background:#15171ccc; backdrop-filter:blur(4px); border-top:1px solid #444; }
   body.narrow #chatHead { display:flex; justify-content:space-between; align-items:center; padding:4px 10px; font-size:13px; }
-  body.narrow #log { font-size:15px; line-height:1.5; max-height:min(32vh, 260px); padding:0 10px 8px; }
+  body.narrow #log { font-size:15px; line-height:1.5; height:min(22vh, 200px); max-height:none; padding:0 10px 8px; }
   body.narrow #chat.closed #log { display:none; }
 </style>
 </head>
