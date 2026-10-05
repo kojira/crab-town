@@ -26,6 +26,14 @@ const CrabChat = (() => {
     return null;
   }
 
+  // How far the on-screen keyboard covers the bottom of the layout viewport
+  // (px), from window.innerHeight and window.visualViewport. 0 without one.
+  function keyboardInset(innerH, vv) {
+    if (!vv || !(innerH > 0)) return 0;
+    const d = innerH - (vv.height + (vv.offsetTop || 0));
+    return d > 1 ? Math.round(d) : 0;
+  }
+
   const doc = typeof document !== "undefined" ? document : null;
   const el = doc && doc.getElementById("log");
   function nearBottom() { return el.scrollHeight - el.scrollTop - el.clientHeight < 24; }
@@ -59,8 +67,18 @@ const CrabChat = (() => {
     const closed = box.classList.toggle("closed");
     toggle.setAttribute("aria-expanded", String(!closed));
     if (!closed) el.scrollTop = el.scrollHeight;
+    if (typeof CrabView !== "undefined") CrabView.layout();
   };
 
-  return { entry, add, system };
+  // Phones: keep the fixed chat panel (and its input) above the soft keyboard.
+  const vv = typeof window !== "undefined" && window.visualViewport;
+  const box = doc && doc.getElementById("chat");
+  function lift() {
+    const k = doc.body.classList.contains("narrow") ? keyboardInset(window.innerHeight, vv) : 0;
+    box.style.bottom = k ? k + "px" : "";
+  }
+  if (vv && box) { vv.addEventListener("resize", lift); vv.addEventListener("scroll", lift); }
+
+  return { entry, add, system, keyboardInset };
 })();
 if (typeof module !== "undefined") module.exports = CrabChat;
