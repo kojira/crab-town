@@ -18,10 +18,12 @@ const ROOM_SPOT = cfg.roomSpot || { x: 29, y: 15 };
 const seen = new Set(); // state event ids already applied (several relays deliver the same event)
 const sockets = [];
 let me = null; // NIP-07 pubkey, once known
+let myActor = null; // world actor this viewer drives (set once the town answers "owner")
+const chatCtx = () => ({ selfGuestId: me ? "nostr:" + me.slice(0, 16) : null, selfActorId: myActor });
 
 const $ = (id) => document.getElementById(id);
 const relaysEl = $("relays");
-function say(s) { logEl.textContent = (new Date().toLocaleTimeString() + " " + s + "\n" + logEl.textContent).slice(0, 4000); }
+function say(s) { CrabChat.system(s); }
 function updateStatus() {
   statusEl.textContent = Object.values(actors)
     .map(a => a.hidden ? `${a.name}: (見えない場所にいる)` : `${a.name}: ${a.state} @ ${a.pos.x},${a.pos.y}`).join(" / ") || "waiting for the town...";
@@ -47,17 +49,17 @@ function apply(ev) {
     const r = rooms[ev.room];
     if (r) { r.in_use = ev.in_use || []; r.hidden_zones = ev.hidden_zones || []; }
     for (const a of Object.values(actors)) if (a.room === ev.room && !a.hidden && inHidden(r, a.pos)) a.hidden = true;
-  } else if (ev.type === "knock") {
-    say(`knock: ${ev.by} → ${ev.house || ev.room} ${ev.message || ""}`);
-  } else if (ev.type === "talk") {
-    say(`talk: ${ev.by}${ev.role ? " (" + ev.role + ")" : ""} → ${ev.to}: ${ev.message || ""}`);
+  } else if (ev.type === "knock" || ev.type === "talk") {
+    CrabChat.add(CrabChat.entry(ev, chatCtx()));
   } else if (ev.type === "say" && ev.actor) {
-    say(`say: ${ev.actor.name || ev.actor.id}: ${ev.message || ""}`);
+    CrabChat.add(CrabChat.entry(ev, chatCtx()));
     if (typeof speech !== "undefined") speech[ev.actor.id] = { text: ev.message || "", until: performance.now() + SPEECH_MS };
   } else if (ev.type === "result") {
     if (!me || ev.p === me) say(`${ev.cmd}: ${ev.ok ? "ok" : "NG " + ev.error} (${ev.role})`);
+    if (me && ev.p === me && ev.role === "owner" && !myActor) { myActor = cfg.ownerActor || "nostarou"; CrabView.setSelf(myActor); }
   }
   updateStatus();
+  CrabView.onWorld();
 }
 
 function onState(ev) {
