@@ -80,6 +80,9 @@ func (r *Room) canCommand(by string, a *Actor) bool {
 	if by == "" {
 		return false
 	}
+	if a.actsAs != "" || a.Pubkey != "" {
+		return by == a.ID // a visitor (a logged-in person) moves only by itself
+	}
 	return by == a.ID || r.HouseAt(a.Pos).CanOperate(by)
 }
 

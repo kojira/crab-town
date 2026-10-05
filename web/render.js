@@ -130,11 +130,15 @@ function drawActor(a, now) {
   ctx.fillStyle = "rgba(0,0,0,0.35)"; // shadow
   ctx.fillRect(x0 + 4 * P, y0 + 15 * P, 8 * P, P);
   const bob = moving && v.frame ? -P : 0;
-  const sp = spriteFor(a);
-  drawSprite(sp.body, sp.pal, x0, y0 + bob, v.flip);
-  drawSprite(sp.legs[moving ? v.frame : 0], sp.pal, x0, y0 + 13 * P, v.flip);
+  const avatar = a.pubkey && typeof CrabAvatar !== "undefined"; // a logged-in person: round kind:0 icon
+  if (avatar) CrabAvatar.draw(ctx, a, x0, y0 + bob, T);
+  else {
+    const sp = spriteFor(a);
+    drawSprite(sp.body, sp.pal, x0, y0 + bob, v.flip);
+    drawSprite(sp.legs[moving ? v.frame : 0], sp.pal, x0, y0 + 13 * P, v.flip);
+  }
   drawStateIcon(a.state, x0, y0);
-  drawNameTag(a.name, x0 + T / 2, y0, y0 + T);
+  drawNameTag(avatar ? CrabAvatar.label(a) : a.name, x0 + T / 2, y0, y0 + T);
   drawSpeech(a, x0, y0, now);
 }
 

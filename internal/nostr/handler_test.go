@@ -97,15 +97,52 @@ func (f *fixture) cmd(t *testing.T, key *btcec.PrivateKey, content string, skew 
 // The bed's access tile in nostarou's bedroom: an owner-only zone.
 var bedroom = fmt.Sprintf(`{"type":"move","x":%d,"y":15}`, world.NostarouX+3)
 
-func TestOwnerMayMove(t *testing.T) {
+// The owner walks their own avatar (id = GuestID, joined in the garden on the
+// first command), never nostarou: nostarou moves by itself through extgate.
+func TestOwnerMovesOwnAvatar(t *testing.T) {
 	f := newFixture(t)
 	res := f.h.Handle(f.cmd(t, f.owner, bedroom, 0))
 	if res.Role != RoleOwner || res.Err != nil || !res.Reply {
 		t.Fatalf("owner move: %+v", res)
 	}
-	a, _ := f.h.World.Actor("nostarou")
-	if a.Target == nil || a.Target.X != world.NostarouX+3 || a.Target.Y != 15 {
-		t.Fatalf("nostarou is not walking to the bedroom: %+v", a)
+	me, ok := f.h.World.Actor(GuestID(PubHex(f.owner)))
+	if !ok || me.Pubkey != PubHex(f.owner) || me.Target == nil || me.Target.X != world.NostarouX+3 || me.Target.Y != 15 {
+		t.Fatalf("owner avatar is not walking to the bedroom: %+v (ok=%v)", me, ok)
+	}
+	if a, _ := f.h.World.Actor("nostarou"); a.Target != nil {
+		t.Fatalf("owner's move drove nostarou: %+v", a)
+	}
+}
+
+func TestOwnerCannotDriveNostarou(t *testing.T) {
+	f := newFixture(t)
+	for i, c := range []string{`{"type":"move","actor":"nostarou","x":24,"y":4}`, `{"type":"move","actor":"labomi","x":24,"y":4}`} {
+		res := f.h.Handle(f.cmd(t, f.owner, c, time.Duration(i)*time.Second))
+		if !errors.Is(res.Err, world.ErrForbidden) {
+			t.Fatalf("owner drove another actor %s: %+v", c, res)
+		}
+	}
+	for _, id := range []string{"nostarou", "labomi"} {
+		if a, _ := f.h.World.Actor(id); a.Target != nil {
+			t.Fatalf("%s moved on the owner's command", id)
+		}
+	}
+}
+
+// A guest gets no avatar and cannot move the owner's either.
+func TestGuestCannotMoveOwnerAvatar(t *testing.T) {
+	f := newFixture(t)
+	f.h.Handle(f.cmd(t, f.owner, `{"type":"snapshot"}`, 0))
+	owner := GuestID(PubHex(f.owner))
+	if _, ok := f.h.World.Actor(owner); !ok {
+		t.Fatal("owner avatar did not join on the owner's first command")
+	}
+	res := f.h.Handle(f.cmd(t, f.guest, `{"type":"move","actor":"`+owner+`","x":24,"y":4}`, 0))
+	if !errors.Is(res.Err, ErrGuestOnly) {
+		t.Fatalf("guest moved the owner's avatar: %+v", res)
+	}
+	if _, ok := f.h.World.Actor(GuestID(PubHex(f.guest))); ok {
+		t.Fatal("a guest got an avatar")
 	}
 }
 
@@ -244,7 +281,7 @@ func TestGuestAndOwnerMayTalk(t *testing.T) {
 		if res.Err != nil || res.Role != c.role || res.Cmd != "talk" || !res.Reply {
 			t.Fatalf("%s talk: %+v", c.role, res)
 		}
-		ev := <-evs
+		ev := nextOf(evs, world.EventTalk)
 		if ev.Type != world.EventTalk || ev.By != GuestID(PubHex(c.key)) || ev.Role != c.role || ev.To != "nostarou" || ev.Message != "こんにちは" {
 			t.Fatalf("%s talk event: %+v", c.role, ev)
 		}
@@ -269,7 +306,7 @@ func TestKnockOnLabomiHouse(t *testing.T) {
 		if res.Err != nil {
 			t.Fatalf("knock %d: %+v", i, res)
 		}
-		if ev := <-evs; ev.Type != "knock" || ev.House != world.LabomiHouse {
+		if ev := nextOf(evs, "knock"); ev.Type != "knock" || ev.House != world.LabomiHouse {
 			t.Fatalf("knock event %d: %+v", i, ev)
 		}
 	}
@@ -286,5 +323,19 @@ func TestOwnerCannotEnterLabomiHouseUninvited(t *testing.T) {
 	f.h.World.House(world.LabomiHouse).Invited = []string{"nostarou"}
 	if res := f.h.Handle(f.cmd(t, f.owner, `{"type":"move","x":11,"y":4}`, time.Second)); res.Err != nil {
 		t.Fatalf("invited move: %+v", res)
+	}
+}
+
+// nextOf skips events of other types (the owner's avatar joining emits an actor event).
+func nextOf(evs <-chan world.Event, typ string) world.Event {
+	for {
+		select {
+		case ev := <-evs:
+			if ev.Type == typ {
+				return ev
+			}
+		case <-time.After(time.Second):
+			return world.Event{}
+		}
 	}
 }
