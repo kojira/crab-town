@@ -159,9 +159,7 @@ func (cc *coreConn) helloBind() {
 			cc.t.Fatalf("hello[%s] = %#v, want %#v (hello=%v)", k, h[k], v, h)
 		}
 	}
-	if ops, ok := h["operations"].([]any); !ok || len(ops) != 0 {
-		cc.t.Fatalf("hello operations = %#v, want []", h["operations"])
-	}
+	checkDeclarations(cc.t, h["operations"])
 	cc.send(map[string]any{"id": h["id"], "m": "ok"})
 	cc.send(map[string]any{"id": "bind:" + testBinding, "m": "bind", "binding_id": testBinding, "address": "crab-town-house"})
 	ok := cc.recv()

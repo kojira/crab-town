@@ -145,10 +145,9 @@ func (b *Bridge) describe(what string) string {
 	} else {
 		sb.WriteString("あなたの現在地: 不明\n")
 	}
-	sb.WriteString("crab-town で今取れる操作:")
-	for _, op := range AgentOperations() {
-		sb.WriteString("\n- " + op.Name + ": " + op.Desc)
-	}
+	sb.WriteString("このターンであなたが書いた本文は、頭上の吹き出しとして町の画面と Nostr の公開状態に出る\n")
+	sb.WriteString("crab-town で今取れる操作（ツールとして呼べる）:")
+	sb.WriteString(Listing(b.Operations()))
 	return sb.String()
 }
 
