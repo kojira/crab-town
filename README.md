@@ -157,14 +157,20 @@ crab-town を opencrab core の External gate（UDS）につなぐ gateway と�
 | `CRAB_EXTGATE_AUTHOR_ID` | `author_id` | said に載せる author_id |
 | `CRAB_EXTGATE_ADDRESS` | `address` | said を送る binding address（任意。既定は bind 済みの先頭） |
 | `CRAB_EXTGATE_ACTOR` | `actor` | say で吹き出しを出し、talk の宛先となるアクター（任意。既定 `nostarou`） |
+| `CRAB_EXTGATE_TICK_SECONDS` | — | 「時間が経った」said を送る間隔（秒、既定 600。0 で無効） |
+| `CRAB_EXTGATE_TALK_QUIET_SECONDS` | — | 来客の talk の後、この秒数は tick を送らない（既定 300） |
 
 一部だけ設定した場合や形式不正は起動エラーにする。
 
 - wire: LF 区切り JSON、1 frame は LF 込み 1,048,576 byte まで。全階層の duplicate member、invalid UTF-8、非 object は接続を閉じる。
-- hello: `protocol=3`、`operation_protocol=1`、`final_delivery="automatic"`、`operations=[]`。切断・拒否後は 200ms から 8s までの指数 backoff で再接続して hello をやり直す。
+- hello: `protocol=3`、`operation_protocol=1`、`final_delivery="automatic"`、`operations` は操作表（`internal/extgate/bridge_ops.go`）から生成した宣言（`interact` / `look` / `move`、名前の昇順）。切断・拒否後は 200ms から 8s までの指数 backoff で再接続して hello をやり直す。
 - `bind` → `ok`。`say` → アクターの吹き出し（表示のみ・外部投稿なし）→ `ok`。text が空なら `err(external_rejected)`。
-- `activity`（ターン開始・終了の通知）では町は何もしない。どう動くかはエージェントが操作で選ぶ。
-- 家具の interact・ノック・Nostr の `talk`（そのアクター宛て）→ `said`（origin は event ごとに一意）。本文は「出来事（誰が・どこで・何を。talk なら本文）」「アクターの現在地」「今取れる操作の一覧（`internal/extgate` の操作表から生成。現状 `say` のみ）」だけ。特定の行動は指示しない。
+- 操作は core が LLM のツールとして見せ、呼ばれると `invoke` が届く。`dispatch="inline"`（同じターンの中で結果がモデルに返る。`background` だと「More tools」に回り、describe_tools で読み込んでから背景 subtask で待つ形になる）。
+  - `move` `{x,y}`: 自分のアクターを歩かせる（`by` はアクター本人）。`look` `{}`: 下の地図を返す（読み取り専用）。`interact` `{furniture}`: 家具まで歩いて使う。
+  - 範囲外・塞がり・経路なし・権限なし・payload 不正・未知の操作は全部 `err(operation_rejected)` で、理由を `detail` に入れる（他の code は core が接続を切るため）。歩く様子は通常の `actor` イベントで画面と 23411 に流れる。
+- `activity`（ターン開始・終了の通知）では町は何もしない（tick の「応答中か」の判定にだけ使う）。どう動くかはエージェントが操作で選ぶ。
+- tick: `CRAB_EXTGATE_TICK_SECONDS` ごとに「時間が経った」said（origin `crab-town:tick:…`）を 1 本送る。本文は最近の出来事・地図・取れる操作だけ。来客の talk から `CRAB_EXTGATE_TALK_QUIET_SECONDS` 以内・エージェントのターン実行中・前の tick への応答（ターン終了）がまだのときは送らない（前の tick が間隔の 3 倍以上放置されたら諦めて再開）。
+- 家具の interact・ノック・Nostr の `talk`（そのアクター宛て）→ `said`（origin は event ごとに一意）。本文は「出来事（誰が・どこで・何を。talk なら本文）」「アクターの現在地」「地図（`ViewSnapshot` でそのアクターに見える範囲だけ: 現在地・ゾーンと座標範囲・ドア・家具・他のアクター）」「今取れる操作の一覧（hello の宣言と同じ操作表から生成）」だけ。特定の行動は指示しない。
 
 ### Nostr 経由の操作（GitHub Pages）
 

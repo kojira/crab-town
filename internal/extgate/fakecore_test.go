@@ -171,8 +171,15 @@ func (cc *coreConn) helloBind() {
 // startBridge runs a bridge on the default world against fc.
 func startBridge(t *testing.T, fc *fakeCore) (*world.World, *Bridge) {
 	t.Helper()
+	return startBridgeWith(t, fc, func(b *Bridge) { b.TickInterval = 0 })
+}
+
+// startBridgeWith lets the test adjust the bridge before it runs.
+func startBridgeWith(t *testing.T, fc *fakeCore, adjust func(*Bridge)) (*world.World, *Bridge) {
+	t.Helper()
 	w := world.NewDefault()
 	b := NewBridge(w, fc.config())
+	adjust(b)
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	go b.Run(ctx)
