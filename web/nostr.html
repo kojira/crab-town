@@ -15,7 +15,39 @@
   #talkText { width:min(420px, 60vw); background:#22252d; color:#ddd; border:1px solid #555; border-radius:4px; padding:4px 8px; }
   #status { margin-top:8px; font-size:14px; }
   #relays, #meta { font:12px monospace; color:#889; }
-  #log { margin-top:8px; font:12px monospace; color:#9a9; max-height:160px; overflow:auto; white-space:pre; }
+  #mapwrap { position:relative; }
+  #stage { position:relative; }
+  #minimap, #jumps, #chatHead { display:none; }
+  /* chat log: who said what, newest at the bottom */
+  #chat { margin-top:8px; max-width:960px; }
+  #log { font:13px/1.45 system-ui,sans-serif; color:#bbb; max-height:160px; overflow:auto; overflow-wrap:anywhere; }
+  #log .line { padding:1px 0; white-space:pre-wrap; }
+  #log .t { color:#667; font:11px monospace; }
+  #log .who { font-weight:bold; }
+  #log .resident .who { color:#ffd84a; } #log .a-labomi .who { color:#ff8fbd; }
+  #log .owner .who { color:#ffb347; } #log .guest .who { color:#7fc8ff; }
+  #log .self .who { color:#8be08b; } #log .self .msg { color:#e8ffe8; }
+  #log .system { color:#7a8a7a; font-size:12px; }
+  /* narrow screens (set by mobile.js): fixed-scale map you drag around */
+  body.narrow { margin:8px; }
+  body.narrow h1 { font-size:18px; margin:4px 0; }
+  body.narrow #bar { gap:6px; font-size:13px; }
+  body.narrow #talkForm { flex:1 1 100%; } body.narrow #talkText { flex:1; width:auto; font-size:16px; }
+  body.narrow #stage { overflow:hidden; touch-action:none; border:2px solid #444; }
+  body.narrow #stage.dragging { cursor:grabbing; }
+  body.narrow canvas { max-width:none; max-height:none; border:0; }
+  body.narrow #jumps { display:flex; gap:6px; flex-wrap:wrap; margin:6px 0; }
+  body.narrow #jumps::before { content:"見る:"; align-self:center; font-size:12px; color:#889; }
+  body.narrow #jumps button { color:#cde; padding:6px 10px; }
+  body.narrow #minimap { display:block; position:absolute; right:6px; top:6px; border:1px solid #ffd84a99;
+    background:#000a; image-rendering:auto; cursor:pointer; z-index:2; }
+  body.narrow #status, body.narrow #relays { font-size:12px; margin-top:4px; }
+  body.narrow { padding-bottom:var(--chat-h, 40vh); }
+  body.narrow #chat { position:fixed; left:0; right:0; bottom:0; margin:0; max-width:none; z-index:5;
+    background:#15171ccc; backdrop-filter:blur(4px); border-top:1px solid #444; }
+  body.narrow #chatHead { display:flex; justify-content:space-between; align-items:center; padding:4px 10px; font-size:13px; }
+  body.narrow #log { font-size:15px; line-height:1.5; height:min(22vh, 200px); max-height:none; padding:0 10px 8px; }
+  body.narrow #chat.closed #log { display:none; }
 </style>
 </head>
 <body>
@@ -30,10 +62,14 @@
     <button class="cmd" id="talk" disabled>話す</button></form>
   <span id="meta">you: <span id="who">-</span> / town: <span id="town">-</span></span>
 </div>
-<canvas id="c" width="1856" height="640"></canvas>
+<div id="jumps" aria-label="表示位置へジャンプ"></div>
+<div id="mapwrap"><canvas id="minimap" width="116" height="40" title="タップでその場所へ"></canvas>
+<div id="stage"><canvas id="c" width="1856" height="640"></canvas></div></div>
 <div id="status">connecting...</div>
 <div id="relays"></div>
-<div id="log"></div>
+<div id="chat"><div id="chatHead"><span>💬 チャット (<span id="chatCount">0</span>)</span>
+  <button type="button" id="chatToggle" aria-expanded="true">開閉</button></div>
+<div id="log" role="log" aria-live="polite"></div></div>
 <script src="config.js"></script>
 <script src="sprites.js"></script>
 <script src="furniture.js"></script>
@@ -41,6 +77,9 @@
 <script src="props.js"></script>
 <script src="town.js"></script>
 <script src="render.js"></script>
+<script src="viewport.js"></script>
+<script src="chatlog.js"></script>
+<script src="mobile.js"></script>
 <script type="module" src="nostr.js"></script>
 </body>
 </html>
