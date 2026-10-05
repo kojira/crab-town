@@ -3,27 +3,41 @@
 const CrabChat = (() => {
   const MAX_LINES = 200;
 
-  // Who said it, as the viewer sees it. ctx: { selfGuestId, selfActorId }.
-  //   self     -- the viewer (their talk, or their own actor's say)
-  //   resident -- a town actor speaking (say)
+  // Who said it, as the viewer sees it. ctx: { selfGuestId, houses, listening }.
+  //   self     -- the viewer's own talk (the logged-in pubkey, owner or guest)
+  //   resident -- a town actor speaking (say). Never "you": even when the
+  //               owner drives that actor, its words come from the agent.
   //   owner    -- a talk verified as the town owner (not this viewer)
   //   guest    -- a visitor's talk
   //   system   -- knocks, command results, connection notes
   function entry(ev, ctx = {}) {
     if (!ev) return null;
     if (ev.type === "say" && ev.actor) {
-      const id = ev.actor.id, name = ev.actor.name || id;
-      const self = !!ctx.selfActorId && id === ctx.selfActorId;
-      return { kind: self ? "self" : "resident", who: self ? `${name}（あなた）` : name, actor: id, text: ev.message || "" };
+      const id = ev.actor.id;
+      return { kind: "resident", who: ev.actor.name || id, actor: id, text: ev.message || "" };
     }
     if (ev.type === "talk") {
       const self = !!ctx.selfGuestId && ev.by === ctx.selfGuestId;
       const kind = self ? "self" : ev.role === "owner" ? "owner" : "guest";
-      const who = self ? "あなた" : kind === "owner" ? "オーナー" : "来客 " + String(ev.by || "").replace(/^nostr:/, "").slice(0, 8);
+      const who = self ? "あなた" : kind === "owner" ? "オーナー" : "来客 " + short(ev.by);
       return { kind, who, to: ev.to || "", text: ev.message || "" };
     }
-    if (ev.type === "knock") return { kind: "system", who: "ノック", text: `${ev.by} → ${ev.house || ev.room} ${ev.message || ""}`.trim() };
+    if (ev.type === "knock") {
+      const h = (ctx.houses || []).find(x => x.id === ev.house);
+      const by = ctx.selfGuestId && ev.by === ctx.selfGuestId ? "あなた" : String(ev.by || "").startsWith("nostr:") ? "来客 " + short(ev.by) : ev.by;
+      let text = `${by} → ${h ? h.label : ev.house || ev.room} ${ev.message || ""}`.trim();
+      if (h && !h.reachable) text += "（今は誰にも届かない・町の出来事として記録だけ）";
+      return { kind: "system", who: "ノック", text };
+    }
     return null;
+  }
+  function short(by) { return String(by || "").replace(/^nostr:/, "").slice(0, 8); }
+
+  // A command result as a readable line (the town answers with error strings).
+  function resultText(ev) {
+    if (ev.ok) return `${ev.cmd}: ok (${ev.role})`;
+    const why = /forbidden/.test(ev.error || "") ? (ev.cmd === "move" ? "その場所には入れない（招待されていない家・見えない部屋）" : "権限がない") : ev.error;
+    return `${ev.cmd}: NG ${why} (${ev.role})`;
   }
 
   // How far the on-screen keyboard covers the bottom of the layout viewport
@@ -79,6 +93,6 @@ const CrabChat = (() => {
   }
   if (vv && box) { vv.addEventListener("resize", lift); vv.addEventListener("scroll", lift); }
 
-  return { entry, add, system, keyboardInset };
+  return { entry, resultText, add, system, keyboardInset };
 })();
 if (typeof module !== "undefined") module.exports = CrabChat;

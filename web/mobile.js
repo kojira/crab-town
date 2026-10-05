@@ -27,16 +27,19 @@ const CrabView = (() => {
     const availW = document.documentElement.clientWidth - 16;
     const mode = V.chooseMode(availW, townW());
     if (mode !== st.mode) { st.mode = mode; document.body.classList.toggle("narrow", mode === "scroll"); }
-    if (mode === "fit") { cv.style.width = cv.style.height = stage.style.height = ""; return; }
+    if (mode === "fit") { cv.style.width = cv.style.height = stage.style.height = ""; window.LABEL_SCALE = 1; return; }
     const chat = document.getElementById("chat"), chatH = chat ? chat.offsetHeight : 0;
-    document.body.style.setProperty("--chat-h", chatH + 8 + "px");
+    document.body.style.setProperty("--chat-h", chatH + "px");
     const top = stage.getBoundingClientRect().top + window.scrollY;
-    const availH = window.innerHeight - top - chatH - 48; // keep the status line visible
+    // the status / relay lines sit between the map and the chat panel
+    const below = ["status", "relays"].reduce((s, id) => { const e = document.getElementById(id); return s + (e ? e.offsetHeight + 4 : 0); }, 4);
+    const stageH = V.stageHeight(window.innerHeight, top, below, chatH);
     const keep = scrollPos(), old = st.tile;
-    st.tile = V.tileSize(availH, townH());
+    st.tile = V.scrollTile(stageH, townH());
+    window.LABEL_SCALE = V.labelScale(st.tile);
     cv.style.width = townW() * st.tile + "px";
     cv.style.height = townH() * st.tile + "px";
-    stage.style.height = Math.min(townH() * st.tile, Math.max(availH, townH() * V.MIN_TILE)) + "px";
+    stage.style.height = stageH + "px";
     const c = content();
     st.mScale = V.minimapScale(townW(), townH(), Math.min(140, stage.clientWidth * 0.4), 60);
     mini.width = townW() * st.mScale; mini.height = townH() * st.mScale;

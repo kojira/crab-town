@@ -4,6 +4,7 @@
 const CrabViewport = (() => {
   const MIN_TILE = 16; // smallest readable tile on screen (css px)
   const MAX_TILE = 32; // the canvas' native tile size
+  const SCROLL_MIN_TILE = 24; // scroll mode on phones: big enough to read; the view scrolls both ways
 
   // "fit" shows the whole town (wide screens); "scroll" shows a fixed-scale
   // viewport that can be dragged around (phones in portrait etc.).
@@ -17,6 +18,21 @@ const CrabViewport = (() => {
   function tileSize(availH, townH, minTile = MIN_TILE, maxTile = MAX_TILE) {
     const t = townH > 0 ? Math.floor(availH / townH) : minTile;
     return Math.max(minTile, Math.min(maxTile, t || minTile));
+  }
+
+  // Scroll-mode tile on phones: fill the height when it can, but never below
+  // SCROLL_MIN_TILE so tiles and canvas text stay readable (the stage then
+  // scrolls vertically too). Fit mode is unaffected.
+  function scrollTile(availH, townH) {
+    return tileSize(availH, townH, SCROLL_MIN_TILE, MAX_TILE);
+  }
+
+  // Height of the map stage: everything between its top and what must stay
+  // visible under it (status lines + the fixed chat panel), so no empty band
+  // is left between the map and the chat. Never below minH.
+  function stageHeight(innerH, top, below, chatH, minH = 160) {
+    const h = Math.floor(innerH - top - below - chatH);
+    return Math.max(minH, h > 0 ? h : 0);
   }
 
   // Clamp a scroll offset so the view stays inside the content. When the
@@ -71,6 +87,24 @@ const CrabViewport = (() => {
     return out;
   }
 
+  // Canvas labels (name tags, tooltips, speech) are drawn in canvas px at the
+  // native tile size T. When a tile is shown at `shownTile` css px they shrink;
+  // this factor keeps a label of basePx canvas px at least minCssPx on screen.
+  function labelScale(shownTile, nativeTile = MAX_TILE, basePx = 11, minCssPx = 13) {
+    if (!(shownTile > 0) || !(nativeTile > 0)) return 1;
+    return Math.max(1, (minCssPx * nativeTile) / (basePx * shownTile));
+  }
+
+  // Knock targets: every house, named after its owner. reachable = someone is
+  // listening there (its owner is in `listening`, e.g. the actor connected via
+  // extgate); otherwise a knock is only recorded as a town event.
+  function knockTargets(room, actors, listening = []) {
+    return ((room && room.houses) || []).map(h => {
+      const o = actors && actors[h.owner];
+      return { id: h.id, owner: h.owner, label: (o && o.name ? o.name : h.owner) + "の家", reachable: listening.includes(h.owner) };
+    });
+  }
+
   // Minimap: pixels per tile so the town fits maxW x maxH.
   function minimapScale(townW, townH, maxW, maxH) {
     return Math.max(1, Math.floor(Math.min(maxW / townW, maxH / townH)));
@@ -86,6 +120,6 @@ const CrabViewport = (() => {
     return { x: Math.floor(mx / mScale), y: Math.floor(my / mScale) };
   }
 
-  return { MIN_TILE, MAX_TILE, chooseMode, tileSize, clampView, centerOn, gardenZone, initialFocus, jumpTargets, minimapScale, minimapFrame, minimapToTile };
+  return { MIN_TILE, MAX_TILE, SCROLL_MIN_TILE, labelScale, scrollTile, stageHeight, knockTargets, chooseMode, tileSize, clampView, centerOn, gardenZone, initialFocus, jumpTargets, minimapScale, minimapFrame, minimapToTile };
 })();
 if (typeof module !== "undefined") module.exports = CrabViewport;

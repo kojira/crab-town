@@ -11,6 +11,8 @@
   #bar { margin:8px 0; display:flex; gap:8px; flex-wrap:wrap; align-items:center; font-size:14px; }
   button { background:#2b2e38; color:#ffd84a; border:1px solid #555; padding:4px 10px; border-radius:4px; cursor:pointer; }
   button:disabled { color:#777; cursor:default; }
+  select { background:#2b2e38; color:#ddd; border:1px solid #555; border-radius:4px; padding:4px 6px; }
+  .knockBox { display:inline-flex; gap:4px; }
   /* talk input sits right under the chat log, like a chat app */
   #talkForm { display:flex; gap:6px; margin-top:6px; }
   #talkText { flex:1; min-width:0; max-width:560px; background:#22252d; color:#ddd; border:1px solid #555; border-radius:4px; padding:4px 8px; }
@@ -29,27 +31,35 @@
   #log .owner .who { color:#ffb347; } #log .guest .who { color:#7fc8ff; }
   #log .self .who { color:#8be08b; } #log .self .msg { color:#e8ffe8; }
   #log .system { color:#7a8a7a; font-size:12px; }
-  /* narrow screens (set by mobile.js): fixed-scale map you drag around */
-  body.narrow { margin:8px; }
-  body.narrow h1 { font-size:18px; margin:4px 0; }
-  body.narrow #bar { gap:6px; font-size:13px; }
+  /* narrow screens (set by mobile.js): fixed-scale map you drag around.
+     Phones: text at 15-16px, the map fills the height down to the chat panel. */
+  body.narrow { margin:8px; padding-bottom:var(--chat-h, 40vh); font-size:16px; }
+  body.narrow h1 { font-size:18px; margin:2px 0; } body.narrow h1 small { display:none; }
+  /* one swipeable row each, so the big buttons do not eat the map's height */
+  body.narrow #bar, body.narrow #jumps { flex-wrap:nowrap; overflow-x:auto; white-space:nowrap; scrollbar-width:none; }
+  body.narrow #bar { gap:6px; font-size:15px; margin:4px 0; }
+  body.narrow #bar > * { flex:none; }
+  body.narrow button, body.narrow select { font-size:15px; padding:7px 11px; }
+  body.narrow #meta { font-size:13px; }
   body.narrow #stage { overflow:hidden; touch-action:none; border:2px solid #444; }
   body.narrow #stage.dragging { cursor:grabbing; }
   body.narrow canvas { max-width:none; max-height:none; border:0; }
-  body.narrow #jumps { display:flex; gap:6px; flex-wrap:wrap; margin:6px 0; }
-  body.narrow #jumps::before { content:"見る:"; align-self:center; font-size:12px; color:#889; }
-  body.narrow #jumps button { color:#cde; padding:6px 10px; }
+  body.narrow #jumps { display:flex; gap:6px; margin:4px 0; }
+  body.narrow #jumps > * { flex:none; }
+  body.narrow #jumps::before { content:"見る:"; align-self:center; font-size:15px; color:#889; }
+  body.narrow #jumps button { color:#cde; }
   body.narrow #minimap { display:block; position:absolute; right:6px; top:6px; border:1px solid #ffd84a99;
     background:#000a; image-rendering:auto; cursor:pointer; z-index:2; }
-  body.narrow #status, body.narrow #relays { font-size:12px; margin-top:4px; }
-  body.narrow { padding-bottom:var(--chat-h, 40vh); }
+  body.narrow #status, body.narrow #relays { white-space:nowrap; overflow-x:auto; scrollbar-width:none; margin-top:3px; }
+  body.narrow #status { font-size:15px; } body.narrow #relays { font-size:13px; }
   body.narrow #chat { position:fixed; left:0; right:0; bottom:0; margin:0; max-width:none; z-index:5;
     background:#15171ccc; backdrop-filter:blur(4px); border-top:1px solid #444; }
-  body.narrow #chatHead { display:flex; justify-content:space-between; align-items:center; padding:4px 10px; font-size:13px; }
-  body.narrow #log { font-size:15px; line-height:1.5; height:min(22vh, 200px); max-height:none; padding:0 10px 8px; }
+  body.narrow #chatHead { display:flex; justify-content:space-between; align-items:center; padding:4px 10px; font-size:16px; }
+  body.narrow #log { font-size:16px; line-height:1.5; height:min(20vh, 180px); max-height:none; padding:0 10px 8px; }
+  body.narrow #log .t { font-size:13px; } body.narrow #log .system { font-size:15px; }
   body.narrow #chat.closed #log { display:none; } /* the input stays usable when closed */
   body.narrow #talkForm { margin:0; padding:6px 10px calc(8px + env(safe-area-inset-bottom, 0px)); border-top:1px solid #333; }
-  body.narrow #talkText { max-width:none; font-size:16px; padding:8px; } body.narrow #talk { padding:6px 14px; }
+  body.narrow #talkText { max-width:none; font-size:16px; padding:8px; } body.narrow #talk { padding:7px 14px; }
 </style>
 </head>
 <body>
@@ -58,7 +68,8 @@
   <button id="login">NIP-07 でログイン</button>
   <button class="cmd" id="toRoom" disabled>のすたろうの部屋へ</button>
   <button class="cmd" id="toGarden" disabled>庭へ</button>
-  <button class="cmd" id="knock" disabled>ノック</button>
+  <span class="knockBox"><select class="cmd" id="knockTo" aria-label="ノックする家" disabled><option value="nostarou-house">のすたろうの家</option></select>
+  <button class="cmd" id="knock" disabled>ノック</button></span>
   <button id="resync">再同期</button>
   <span id="meta">you: <span id="who">-</span> / town: <span id="town">-</span></span>
 </div>

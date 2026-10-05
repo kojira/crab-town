@@ -13,8 +13,12 @@ function drawSprite(rows, pal, x0, y0, flip) {
 }
 
 // ---- labels -----------------------------------------------------------------
-// Shrink the font until text fits maxW; returns the px size used.
+// Shrink the font until text fits maxW; returns the px size used. Sizes are
+// canvas px at the native tile size; LABEL_SCALE (set by mobile.js when tiles
+// are shown smaller than native) enlarges them so they stay readable.
 function fitFont(text, maxW, maxPx, minPx) {
+  const k = typeof window !== "undefined" && window.LABEL_SCALE > 1 ? window.LABEL_SCALE : 1;
+  maxW *= k; maxPx = Math.round(maxPx * k); minPx = Math.round(minPx * k);
   for (let px = maxPx; px > minPx; px--) {
     ctx.font = `bold ${px}px sans-serif`;
     if (ctx.measureText(text).width <= maxW) return px;
