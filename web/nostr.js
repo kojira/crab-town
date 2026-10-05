@@ -54,13 +54,20 @@ function apply(ev) {
     const r = rooms[ev.room];
     if (r) { r.in_use = ev.in_use || []; r.hidden_zones = ev.hidden_zones || []; }
     for (const a of Object.values(actors)) if (a.room === ev.room && !a.hidden && inHidden(r, a.pos)) a.hidden = true;
-  } else if (ev.type === "knock" || ev.type === "talk") {
+  } else if (ev.type === "knock") {
     CrabChat.add(CrabChat.entry(ev, chatCtx()));
+  } else if (ev.type === "talk") {
+    // our own talk is already on screen (sent at once): the echo only confirms it
+    const mine = me && ev.by === ownAvatarId(me) && live && outbox.echo(ev.message || "");
+    if (mine) delivered(mine); else CrabChat.add(CrabChat.entry(ev, chatCtx()));
   } else if (ev.type === "say" && ev.actor) {
     CrabChat.add(CrabChat.entry(ev, chatCtx()));
-    if (typeof speech !== "undefined") speech[ev.actor.id] = { text: ev.message || "", until: performance.now() + SPEECH_MS };
+    if (live && ev.actor.id === talkActor()) CrabChat.typing("");
+    if (live && typeof speech !== "undefined") speech[ev.actor.id] = { text: ev.message || "", until: performance.now() + CrabTalk.speechMs(ev.message) };
   } else if (ev.type === "result") {
-    if (!me || ev.p === me) say(CrabChat.resultText(ev));
+    if (!me || ev.p !== me) { /* someone else's command */ }
+    else if (ev.cmd === "talk" && outbox.result(ev.e, ev.ok, ev.error)) onTalkResult(ev);
+    else if (live && CrabTalk.resultWorthALine(ev)) CrabChat.error(CrabChat.resultText(ev));
     if (me && ev.p === me && ev.role === "owner" && !myActor) { myActor = ownAvatarId(me); CrabView.setSelf(myActor); }
   }
   updateStatus();
@@ -91,12 +98,41 @@ function onState(ev) {
   if (seen.size > 5000) seen.clear();
   let msg;
   try { msg = JSON.parse(ev.content); } catch { return; }
-  const p = (ev.tags.find(t => t[0] === "p") || [])[1];
-  if (msg.type === "result") msg.p = p;
-  if (msg.type === "snapshot" && ev.created_at < (onState.snapAt || 0)) return; // older snapshot
-  if (msg.type === "snapshot") onState.snapAt = ev.created_at;
+  const tag = (k) => (ev.tags.find(t => t[0] === k) || [])[1];
+  if (msg.type === "result") { msg.p = tag("p"); msg.e = tag("e"); }
+  if (msg.type === "say" && !msg.reply_to && tag("reply_to")) msg.reply_to = tag("reply_to");
+  msg.at = ev.created_at; msg.created_at = ev.created_at;
+  // stored events replayed before EOSE arrive in any order: sort them first
+  if (!live) { backlog.push(msg); return; }
+  applyOne(msg);
+}
+function applyOne(msg) {
+  if (msg.type === "snapshot" && msg.created_at < (applyOne.snapAt || 0)) return; // older snapshot
+  if (msg.type === "snapshot") applyOne.snapAt = msg.created_at;
   apply(msg);
 }
+
+// History: buffer until every open relay sent EOSE (or 2.5 s after the
+// first one), then draw it oldest first. Later events are drawn as they come.
+let live = false;
+const backlog = [];
+let flushTimer = null;
+function onEose(s) {
+  s.eose = true;
+  if (live) return;
+  if (sockets.every(x => x.eose || !x.open)) flushBacklog();
+  else if (!flushTimer) flushTimer = setTimeout(flushBacklog, 2500);
+}
+let loginTried = false;
+function flushBacklog(force) {
+  if (live) return;
+  // wait for the NIP-07 pubkey so history can say which lines were "you"
+  if (!force && window.nostr && !loginTried) { setTimeout(flushBacklog, 300); return; }
+  clearTimeout(flushTimer);
+  live = true;
+  for (const m of CrabTalk.sortBacklog(backlog.splice(0))) applyOne(m);
+}
+setTimeout(() => flushBacklog(true), 8000); // a relay that never sends EOSE does not hold the page
 
 function connect(url) {
   const s = { url, ws: null, open: false };
@@ -113,9 +149,10 @@ function connect(url) {
     ws.onmessage = (m) => {
       let d; try { d = JSON.parse(m.data); } catch { return; }
       if (d[0] === "EVENT" && d[2]) onState(d[2]);
-      else if (d[0] === "OK" && d[2] === false) say(`${url} rejected: ${d[3]}`);
+      else if (d[0] === "EOSE") onEose(s);
+      else if (d[0] === "OK" && d[2] === false) relayRejected(d[1], url, d[3]);
     };
-    ws.onclose = () => { s.open = false; relaysEl.textContent = sockets.map(x => (x.open ? "●" : "○") + " " + x.url).join("  "); setTimeout(open, 3000); };
+    ws.onclose = () => { s.open = false; s.eose = false; relaysEl.textContent = sockets.map(x => (x.open ? "●" : "○") + " " + x.url).join("  "); setTimeout(open, 3000); };
   };
   open();
 }
@@ -133,13 +170,62 @@ async function sign(tmpl) {
   throw new Error("NIP-07 (window.nostr) が必要");
 }
 
-async function send(cmd) {
+// Publish one command. Returns { ev, n } (n = relays it went to) or throws
+// when it could not be signed. No line is written: callers report failures.
+async function publish(cmd) {
   const tmpl = { kind: KIND_COMMAND, created_at: Math.floor(Date.now() / 1000), tags: [["p", TOWN], ["t", "crab-town"]], content: JSON.stringify(cmd) };
-  let ev;
-  try { ev = await sign(tmpl); } catch (e) { say(`${cmd.type}: ${e.message || e}`); return; }
+  const ev = await sign(tmpl);
   let n = 0;
-  for (const s of sockets) if (s.open) { s.ws.send(JSON.stringify(["EVENT", ev])); n++; }
-  if (cmd.type !== "snapshot") say(`sent ${cmd.type} to ${n} relay(s)`);
+  for (const s of sockets) if (s.open) { try { s.ws.send(JSON.stringify(["EVENT", ev])); n++; } catch { /* closing */ } }
+  return { ev, n };
+}
+// Commands other than talk: only failures are worth a line.
+async function send(cmd) {
+  let r;
+  try { r = await publish(cmd); } catch (e) { if (cmd.type !== "snapshot") CrabChat.error(`${cmd.type}: ${e.message || e}`); return; }
+  if (r.n === 0 && cmd.type !== "snapshot") CrabChat.error(`${cmd.type}: つながっているリレーが無いので送れなかった`);
+}
+
+// ---- talk: shown at once, 送信中… -> 届いた, input cleared only when it is in ----
+const outbox = CrabTalk.outbox();
+const rows = new Map(); // outbox key -> log row
+const TALK_TIMEOUT_MS = 20000, TYPING_MAX_MS = 120000;
+const talkActor = () => cfg.talkTo || "nostarou";
+const talkName = () => (actors[talkActor()] && actors[talkActor()].name) || "のすたろう";
+let typingTimer = null;
+function showStatus(it) {
+  CrabChat.setStatus(rows.get(it.key), it.status, CrabTalk.STATUS_TEXT[it.status], it.error, () => talk(it.text, it));
+}
+function delivered(it) {
+  showStatus(it);
+  if ($("talkText").value.trim() === it.text) $("talkText").value = "";
+  CrabChat.typing(talkName());
+  clearTimeout(typingTimer);
+  typingTimer = setTimeout(() => CrabChat.typing(""), TYPING_MAX_MS);
+}
+function failed(it) { showStatus(it); $("talkText").focus({ preventScroll: true }); }
+function onTalkResult(ev) {
+  const it = outbox.items.find(x => x.eventId === ev.e);
+  if (it.status === "delivered") delivered(it); else failed(it);
+}
+function relayRejected(id, url, why) {
+  const it = outbox.items.find(x => x.eventId === id);
+  if (!it) { CrabChat.error(`${url} に拒否された: ${why}`); return; }
+  // other relays may still carry it: the town's result decides
+}
+async function talk(text, again) {
+  const it = again || outbox.add(text);
+  if (again) { it.status = "sending"; it.error = ""; it.eventId = ""; showStatus(it); }
+  else rows.set(it.key, CrabChat.add({ kind: "self", who: "あなた", to: "", text }));
+  showStatus(it);
+  let r;
+  try { r = await publish({ type: "talk", text }); } catch (e) { outbox.signFailed(it, e.message || e); failed(it); return; }
+  outbox.sent(it, r.ev.id, r.n);
+  if (it.status === "failed") { failed(it); return; }
+  const id = r.ev.id;
+  setTimeout(() => {
+    if (it.eventId === id && it.status === "sending") { it.status = "failed"; it.error = "町から応答が無い（届いていないかも）"; failed(it); }
+  }, TALK_TIMEOUT_MS);
 }
 
 let snapTimer = null;
@@ -148,11 +234,18 @@ function requestSnapshot() {
   snapTimer = setTimeout(() => send({ type: "snapshot" }), 300); // once for all relays opening together
 }
 
+// Without NIP-07 the input stays off; say why where the reader looks.
+function setHint(loggedIn) {
+  $("talkText").placeholder = CrabTalk.inputHint(loggedIn);
+  const h = $("talkHint");
+  if (h) h.hidden = loggedIn;
+}
 async function login() {
-  if (!window.nostr) { say("NIP-07 拡張が見つからない（閲覧のみ）"); return; }
-  try { me = await window.nostr.getPublicKey(); } catch (e) { say("NIP-07: " + e); return; }
+  if (!window.nostr) { CrabChat.error("NIP-07 拡張が見つからない。" + CrabTalk.HINT_LOGIN + "（今は閲覧のみ）"); setHint(false); return; }
+  try { me = await window.nostr.getPublicKey(); } catch (e) { CrabChat.error("NIP-07: " + e); return; } finally { loginTried = true; }
   $("who").textContent = me.slice(0, 12) + "…";
   for (const b of document.querySelectorAll(".cmd")) b.disabled = false;
+  setHint(true);
   CrabAvatar.load(me, RELAYS, verifyEvent);
   requestSnapshot(); // a signed command: the owner's avatar joins the garden
 }
@@ -178,9 +271,8 @@ $("talkForm").onsubmit = (e) => {
   e.preventDefault();
   const text = $("talkText").value.trim();
   if (!text) return;
-  if ([...text].length > 280) { say("talk: 280文字まで"); return; }
-  send({ type: "talk", text });
-  $("talkText").value = "";
+  if ([...text].length > 280) { CrabChat.error("talk: 280文字まで"); return; }
+  talk(text);
 };
 
 if (!TOWN || !/^[0-9a-f]{64}$/.test(TOWN) || RELAYS.length === 0) {
@@ -190,5 +282,6 @@ if (!TOWN || !/^[0-9a-f]{64}$/.test(TOWN) || RELAYS.length === 0) {
   RELAYS.forEach(connect);
   updateStatus();
 }
+setHint(false);
 setTimeout(() => { if (window.nostr) login(); }, 500);
 requestAnimationFrame(draw);

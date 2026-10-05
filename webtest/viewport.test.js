@@ -75,7 +75,7 @@ test("minimap scale, frame and tap -> tile", () => {
 test("chat lines say who spoke: resident / guest / owner / self", () => {
   const ctx = { selfGuestId: "nostr:aaaaaaaaaaaaaaaa", selfActorId: null };
   assert.deepEqual(Chat.entry({ type: "say", actor: { id: "nostarou", name: "のすたろう" }, message: "よっ" }, ctx),
-    { kind: "resident", who: "のすたろう", actor: "nostarou", text: "よっ" });
+    { kind: "resident", who: "のすたろう", actor: "nostarou", text: "よっ", at: 0, to: "", dim: false });
   assert.equal(Chat.entry({ type: "talk", by: "nostr:bbbbbbbbbbbbbbbb", role: "guest", to: "nostarou", message: "hi" }, ctx).kind, "guest");
   assert.equal(Chat.entry({ type: "talk", by: "nostr:bbbbbbbbbbbbbbbb", role: "guest", message: "hi" }, ctx).who, "来客 bbbbbbbb");
   assert.equal(Chat.entry({ type: "talk", by: "nostr:aaaaaaaaaaaaaaaa", role: "guest", message: "me" }, ctx).kind, "self");
