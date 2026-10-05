@@ -133,6 +133,7 @@ type Actor struct {
 	Target *Pos   `json:"target,omitempty"` // walking destination
 	Hidden bool   `json:"hidden,omitempty"` // view only: position/state withheld from this viewer
 	Pubkey string `json:"pubkey,omitempty"` // visitor's Nostr pubkey (hex): the viewer shows its kind:0 picture
+	Role   string `json:"role,omitempty"`   // "" = resident; visitors: RoleOwner | RoleGuest (Join)
 
 	actsAs  string // visitor: whose house rights it walks with (Join)
 	pending string // furniture to use on arrival

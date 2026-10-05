@@ -3,6 +3,12 @@ package world
 // Visitors: actors that are not residents of a house but people who log in
 // (the town owner arriving over Nostr with their own avatar).
 
+// Visitor roles (Actor.Role). Residents have Role "".
+const (
+	RoleOwner = "owner"
+	RoleGuest = "guest"
+)
+
 // Join adds a visitor actor unless one with the same id is already in the
 // world. actsAs, when set, is the id whose house rights the visitor walks
 // with: it may enter exactly the houses actsAs may enter (owner / invited);
@@ -26,6 +32,9 @@ func (w *World) Join(a Actor, actsAs string) (bool, error) {
 	if a.State == "" {
 		a.State = StateIdle
 	}
+	if a.Role == "" {
+		a.Role = RoleGuest
+	}
 	a.actsAs, a.pending, a.by, a.path, a.Target, a.Using = actsAs, "", "", nil, nil, ""
 	w.actors[a.ID] = &a
 	ev := Event{Type: "actor", Room: r.ID, Actor: copyActor(&a), By: a.ID}
@@ -40,4 +49,21 @@ func (w *World) enterAs(by string) string {
 		return a.actsAs
 	}
 	return by
+}
+
+// PlaceAt names the house and zone of tile p in room ("" when outside any).
+func (w *World) PlaceAt(room string, p Pos) (house, zone string) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	r := w.rooms[room]
+	if r == nil {
+		return "", ""
+	}
+	if h := r.HouseAt(p); h != nil {
+		house = h.ID
+	}
+	if z := r.ZoneAt(p); z != nil {
+		zone = z.Name
+	}
+	return house, zone
 }

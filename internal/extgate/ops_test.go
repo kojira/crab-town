@@ -281,12 +281,17 @@ func TestSaidMapHidesInvisibleZones(t *testing.T) {
 	cc.send(map[string]any{"id": said["id"], "m": "ok", "seq": 1})
 	checkMap(t, w, text)
 
-	// look returns the same map
+	// look returns the same map (said puts its actor line higher up)
 	r := invoke(cc, "look-1", "look", map[string]any{})
 	res, _ := r["result"].(map[string]any)
 	m, _ := res["map"].(string)
-	if r["m"] != "ok" || m == "" || !strings.Contains(text, m) {
+	if r["m"] != "ok" || m == "" {
 		t.Fatalf("look = %v", r)
+	}
+	for _, line := range strings.Split(m, "\n") {
+		if !strings.Contains(text, line+"\n") && !strings.HasSuffix(text, line) {
+			t.Errorf("look line not in said: %q", line)
+		}
 	}
 }
 
@@ -327,7 +332,7 @@ func checkMap(t *testing.T, w *world.World, text string) {
 		}
 	}
 	wa, _ := w.Where("nostarou")
-	for _, want := range []string{fmt.Sprintf("現在地: (%d,%d) %s", wa.Pos.X, wa.Pos.Y, wa.Zone), "ドア: ", "ソファ[sofa](50,6)", "らぼみ("} {
+	for _, want := range []string{fmt.Sprintf("現在地: (%d,%d) %s", wa.Pos.X, wa.Pos.Y, wa.Zone), "ドア: ", "ソファ[sofa](50,6)", "らぼみ[住人]("} {
 		if !strings.Contains(text, want) {
 			t.Errorf("map lacks %q", want)
 		}
@@ -347,7 +352,7 @@ func TestMapHidesActorInPrivateZone(t *testing.T) {
 	if a, _ := w.Actor("labomi"); a.Pos != (world.Pos{X: 3, Y: 16}) {
 		t.Fatalf("labomi at %v", a.Pos)
 	}
-	if v := b.View(); strings.Contains(v, "らぼみ(") {
+	if v := b.View(); strings.Contains(v, "らぼみ[") {
 		t.Errorf("hidden actor listed:\n%s", v)
 	}
 }
