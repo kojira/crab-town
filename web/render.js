@@ -107,9 +107,9 @@ function drawSpeech(a, x0, y0, now) {
   const s = speech[a.id];
   if (!s || now > s.until) { delete speech[a.id]; return; }
   const k = typeof window !== "undefined" && window.LABEL_SCALE > 1 ? window.LABEL_SCALE : 1;
-  const px = Math.round(12 * k), maxW = Math.min(T * 9 * k, cv.width - 12);
+  const px = Math.round(14 * k), maxW = Math.min(T * 11 * k, cv.width - 12);
   ctx.font = `bold ${px}px sans-serif`;
-  const lines = CrabTalk.wrap(s.text, maxW, (t) => ctx.measureText(t).width, 6);
+  const lines = CrabTalk.wrap(s.text, maxW, (t) => ctx.measureText(t).width); // whole text, never cut
   const lh = Math.round(px * 1.3);
   const w = Math.ceil(Math.max(...lines.map(l => ctx.measureText(l).width))) + 12, h = lines.length * lh + 8;
   const x = Math.max(0, Math.min(cv.width - w, Math.round(x0 + T / 2 - w / 2)));
@@ -119,6 +119,15 @@ function drawSpeech(a, x0, y0, now) {
   ctx.fillStyle = "#111"; ctx.textAlign = "left"; ctx.textBaseline = "top";
   lines.forEach((l, i) => ctx.fillText(l, x + 6, y + 4 + i * lh + (lh - px) / 2));
   ctx.textBaseline = "alphabetic";
+}
+
+// Sitting: the actor uses a sofa (it stands on the sofa's seat tile).
+const SIT_KINDS = { sofa: 1, pinksofa: 1 };
+const SIT_LEGS = ["..LLLLLLLLLL....", "..BB......BB...."];
+function isSitting(a) {
+  if (!a.using) return false;
+  const r = rooms[a.room], f = r && r.furniture.find(x => x.id === a.using);
+  return !!(f && SIT_KINDS[f.kind]);
 }
 
 function drawActor(a, now) {
@@ -138,8 +147,13 @@ function drawActor(a, now) {
   if (avatar) CrabAvatar.draw(ctx, a, x0, y0 + bob, T);
   else {
     const sp = spriteFor(a);
-    drawSprite(sp.body, sp.pal, x0, y0 + bob, v.flip);
-    drawSprite(sp.legs[moving ? v.frame : 0], sp.pal, x0, y0 + 13 * P, v.flip);
+    if (!moving && isSitting(a)) { // on the sofa: body lower, knees forward
+      drawSprite(sp.body, sp.pal, x0, y0 + 2 * P, v.flip);
+      drawSprite(SIT_LEGS, sp.pal, x0, y0 + 13 * P, v.flip);
+    } else {
+      drawSprite(sp.body, sp.pal, x0, y0 + bob, v.flip);
+      drawSprite(sp.legs[moving ? v.frame : 0], sp.pal, x0, y0 + 13 * P, v.flip);
+    }
   }
   drawStateIcon(a.state, x0, y0);
   drawNameTag(avatar ? CrabAvatar.label(a) : a.name, x0 + T / 2, y0, y0 + T);

@@ -64,7 +64,7 @@ const CrabTalk = (() => {
   // ---- speech bubbles ------------------------------------------------------
   // Wrap into lines no wider than maxW (measure: text -> px). Breaks between
   // characters (Japanese has no spaces); at most maxLines, the last ends in "…".
-  function wrap(text, maxW, measure, maxLines = 8) {
+  function wrap(text, maxW, measure, maxLines = Infinity) {
     const out = [];
     for (const para of String(text || "").split("\n")) {
       let line = "";
@@ -78,7 +78,7 @@ const CrabTalk = (() => {
     return out;
   }
   // How long a bubble stays: long enough to read (about 8 characters a second).
-  const SPEECH_MIN_MS = 6000, SPEECH_MAX_MS = 30000;
+  const SPEECH_MIN_MS = 6000, SPEECH_MAX_MS = 60000;
   function speechMs(text) {
     const n = [...String(text || "")].length;
     return Math.max(SPEECH_MIN_MS, Math.min(SPEECH_MAX_MS, 3000 + n * 125));

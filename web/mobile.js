@@ -42,7 +42,9 @@ const CrabView = (() => {
     stage.style.height = stageH + "px";
     const c = content();
     st.mScale = V.minimapScale(townW(), townH(), Math.min(140, stage.clientWidth * 0.4), 60);
-    mini.width = townW() * st.mScale; mini.height = townH() * st.mScale;
+    const mw = townW() * st.mScale, mh = townH() * st.mScale; // assigning clears it: only on change
+    if (mini.width !== mw) mini.width = mw;
+    if (mini.height !== mh) mini.height = mh;
     if (old !== st.tile) { // keep the same tile in the middle of the view
       const k = st.tile / old, hw = stage.clientWidth / 2, hh = stage.clientHeight / 2;
       scrollTo({ x: (keep.x + hw) * k - hw, y: (keep.y + hh) * k - hh });
@@ -113,7 +115,16 @@ const CrabView = (() => {
     setTimeout(() => requestAnimationFrame(drawMinimap), 100);
   }
 
-  window.addEventListener("resize", () => { layout(); });
+  // A phone keyboard opening/closing resizes the window height only; while the
+  // talk input has focus that must not shrink the map (it would re-tile and jump).
+  let lastW = document.documentElement.clientWidth;
+  window.addEventListener("resize", () => {
+    const w = document.documentElement.clientWidth, typing = document.activeElement && document.activeElement.id === "talkText";
+    if (typing && w === lastW && st.mode === "scroll") return;
+    lastW = w; layout();
+  });
+  const talkIn = document.getElementById("talkText");
+  if (talkIn) talkIn.addEventListener("blur", () => setTimeout(layout, 200));
   layout();
   drawMinimap();
   return { onWorld, setSelf, centerOn, layout, state: st };

@@ -27,14 +27,14 @@
   #minimap, #jumps, #chatHead { display:none; }
   /* chat log: who said what, newest at the bottom */
   #chat { margin-top:8px; max-width:960px; }
-  #log { font:13px/1.45 system-ui,sans-serif; color:#bbb; max-height:160px; overflow:auto; overflow-wrap:anywhere; }
+  #log { font:16px/1.5 system-ui,sans-serif; color:#bbb; max-height:160px; overflow:auto; overflow-wrap:anywhere; }
   #log .line { padding:1px 0; white-space:pre-wrap; }
-  #log .t { color:#667; font:11px monospace; }
+  #log .t { color:#667; font:13px monospace; }
   #log .who { font-weight:bold; }
   #log .resident .who { color:#ffd84a; } #log .a-labomi .who { color:#ff8fbd; }
   #log .owner .who { color:#ffb347; } #log .guest .who { color:#7fc8ff; }
   #log .self .who { color:#8be08b; } #log .self .msg { color:#e8ffe8; }
-  #log .system { color:#7a8a7a; font-size:12px; }
+  #log .system { color:#7a8a7a; font-size:14px; }
   #log .dim { opacity:.5; } #log .err, #log .st.failed { color:#ff6b6b; }
   #log .st { font-size:11px; color:#889; } #log .st.delivered { color:#7fbf7f; }
   #log .retry { font-size:12px; padding:1px 8px; margin-left:4px; color:#ffb3b3; border-color:#a55; }
@@ -65,7 +65,7 @@
   body.narrow #chat { position:fixed; left:0; right:0; bottom:0; margin:0; max-width:none; z-index:5;
     background:#15171ccc; backdrop-filter:blur(4px); border-top:1px solid #444; }
   body.narrow #chatHead { display:flex; justify-content:space-between; align-items:center; padding:4px 10px; font-size:16px; }
-  body.narrow #log { font-size:16px; line-height:1.5; height:min(20vh, 180px); max-height:none; padding:0 10px 8px; }
+  body.narrow #log { font-size:17px; line-height:1.5; height:min(20vh, 180px); max-height:none; padding:0 10px 8px; }
   body.narrow #log .t { font-size:13px; } body.narrow #log .system { font-size:15px; }
   body.narrow #chat.focus #log { height:min(calc(var(--vv-h, 60vh) * .45), 360px); }
   body.narrow #chat.closed #log, body.narrow #chat.closed #newLines { display:none; }

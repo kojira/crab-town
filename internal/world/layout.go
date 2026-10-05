@@ -98,7 +98,7 @@ func defaultFurniture() []*Furniture {
 		// living
 		{ID: "window", Kind: KindWindow, Label: "窓", Function: "timeline", Pos: Pos{24, 0}, Size: Size{4, 1}, Access: Pos{25, 1}, State: StateTalking},
 		deco("lowtable", KindLowTable, "ローテーブル", 25, 3, 2, 1),
-		{ID: "sofa", Kind: KindSofa, Label: "ソファ", Function: "visitors", Pos: Pos{24, 6}, Size: Size{4, 2}, Access: Pos{26, 5}, State: StateTalking},
+		{ID: "sofa", Kind: KindSofa, Label: "ソファ", Function: "visitors", Pos: Pos{24, 6}, Size: Size{4, 2}, Access: Pos{26, 5}, Seat: &Pos{26, 6}, State: StateTalking},
 		deco("plant", KindPlant, "観葉植物", 30, 1, 1, 1),
 		deco("livingplant", KindPlant, "観葉植物", 21, 1, 1, 1),
 		deco("floorlamp", KindFloorLamp, "フロアランプ", 30, 7, 1, 1),
