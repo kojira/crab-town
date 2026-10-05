@@ -92,7 +92,7 @@ func (b *Bridge) sendLoop(ctx context.Context, queue <-chan Said) {
 // toSaid turns an interact / knock / talk world event into a said whose text
 // reports what happened and what the agent can do. It never says what to do.
 func (b *Bridge) toSaid(ev world.Event) (Said, bool) {
-	var what string
+	var what, caller string
 	switch ev.Type {
 	case "actor":
 		w, ok := b.visitorSaid(ev)
@@ -131,14 +131,23 @@ func (b *Bridge) toSaid(ev world.Event) (Said, bool) {
 			to = wa.Actor
 		}
 		what = fmt.Sprintf("%s が %s に話しかけた（Nostr 経由、平文）\n本文: %s", who, to, ev.Message)
+		// The town owner (Role is set only after the Nostr signature matched
+		// CRAB_NOSTR_OWNER) talks to the agent as its owner: core runs that
+		// turn with the owner's rights, as it would from any other gateway.
+		if ev.Role == world.RoleOwner {
+			caller = CallerOwner
+		}
 	default:
 		return Said{}, false
 	}
 	b.noteEvent(what, ev.Type == world.EventTalk)
 	n := b.origin.Add(1)
 	origin := fmt.Sprintf("crab-town:%s:%d:%d", ev.Type, ev.Time.UnixNano(), n)
-	return Said{Origin: origin, Text: b.describe(what), AuthorLabel: label(ev.By)}, true
+	return Said{Origin: origin, Text: b.describe(what), AuthorLabel: label(ev.By), Caller: caller}, true
 }
+
+// CallerOwner is said's caller role for a turn the town owner started.
+const CallerOwner = "owner"
 
 // place is where id stands if it is an actor in the world, else the room.
 func (b *Bridge) place(id, room string) string {

@@ -366,6 +366,9 @@ type Said struct {
 	Origin      string // unique per event; core dedups (binding, origin)
 	Text        string
 	AuthorLabel string // display only; may be empty
+	// Caller is the role core should run the turn as ("owner" or ""). Empty
+	// sends no caller, which core treats as an untrusted agent turn.
+	Caller string
 }
 
 // Said sends said to the configured (or first acknowledged) binding and waits
@@ -402,6 +405,9 @@ func (c *Client) Said(ctx context.Context, s Said) (*int64, error) {
 	}
 	if s.AuthorLabel != "" {
 		frame["author_label"] = s.AuthorLabel
+	}
+	if s.Caller != "" {
+		frame["caller"] = map[string]any{"role": s.Caller}
 	}
 	if err := k.write(frame); err != nil {
 		k.close("said write")
