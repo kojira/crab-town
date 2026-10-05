@@ -159,9 +159,7 @@ func (cc *coreConn) helloBind() {
 			cc.t.Fatalf("hello[%s] = %#v, want %#v (hello=%v)", k, h[k], v, h)
 		}
 	}
-	if ops, ok := h["operations"].([]any); !ok || len(ops) != 0 {
-		cc.t.Fatalf("hello operations = %#v, want []", h["operations"])
-	}
+	checkDeclarations(cc.t, h["operations"])
 	cc.send(map[string]any{"id": h["id"], "m": "ok"})
 	cc.send(map[string]any{"id": "bind:" + testBinding, "m": "bind", "binding_id": testBinding, "address": "crab-town-house"})
 	ok := cc.recv()
@@ -173,8 +171,15 @@ func (cc *coreConn) helloBind() {
 // startBridge runs a bridge on the default world against fc.
 func startBridge(t *testing.T, fc *fakeCore) (*world.World, *Bridge) {
 	t.Helper()
+	return startBridgeWith(t, fc, func(b *Bridge) { b.TickInterval = 0 })
+}
+
+// startBridgeWith lets the test adjust the bridge before it runs.
+func startBridgeWith(t *testing.T, fc *fakeCore, adjust func(*Bridge)) (*world.World, *Bridge) {
+	t.Helper()
 	w := world.NewDefault()
 	b := NewBridge(w, fc.config())
+	adjust(b)
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	go b.Run(ctx)

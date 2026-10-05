@@ -10,6 +10,7 @@ import (
 	"net"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -23,6 +24,9 @@ type Handler interface {
 	OnActivity(bindingID, address, activityID, state string)
 	// OnDisconnect is called when a live connection closes (activities end with it).
 	OnDisconnect()
+	// Operations is what crab-town declares in hello (and so what core shows
+	// the agent as tools). invoke of anything else is rejected.
+	Operations() []Operation
 }
 
 // Timings. Variables so tests can shorten them.
@@ -136,7 +140,7 @@ func (c *Client) session(ctx context.Context) bool {
 	if err := k.write(map[string]any{
 		"id": helloID, "m": "hello",
 		"protocol": Protocol, "operation_protocol": OperationProtocol,
-		"final_delivery": "automatic", "operations": []any{},
+		"final_delivery": "automatic", "operations": Declarations(c.handler.Operations()),
 		"instance_id": c.cfg.InstanceID, "revision": c.cfg.Revision,
 		"config_digest": c.cfg.ConfigDigest,
 	}); err != nil {
@@ -216,10 +220,11 @@ func errFrame(id, code string) map[string]any {
 func (c *Client) handle(k *conn, obj map[string]any) string {
 	m, _ := str(obj, "m")
 	id, hasID := reqID(obj)
-	if op, ok := lookupOperation(m); ok {
-		return op.handle(c, k, obj, id, hasID)
-	}
 	switch m {
+	case "say": // final delivery of the agent's turn text (protocol, not a declared operation)
+		return c.handleSay(k, obj, id, hasID)
+	case "invoke":
+		return c.handleInvoke(k, obj, id, hasID)
 	case "bind":
 		bid, _ := str(obj, "binding_id")
 		addr, okAddr := nonempty(obj, "address")
@@ -252,38 +257,9 @@ func (c *Client) handle(k *conn, obj map[string]any) string {
 		return ""
 	case "ok", "err":
 		return c.resolve(k, obj, m)
-	default: // hello/said from core, unknown m (turn_failed, invoke, ...)
+	default: // hello/said from core, unknown m (turn_failed, ...)
 		return c.reply(k, hasID, errFrame(id, "unknown_message"))
 	}
-}
-
-// Operation is one core->gateway message that carries something the agent
-// chose to do (as opposed to protocol plumbing: bind, activity, responses).
-type Operation struct {
-	Name   string
-	Desc   string // what it does, shown to the agent as-is
-	handle func(c *Client, k *conn, obj map[string]any, id string, hasID bool) string
-}
-
-// agentOperations: handle dispatches through this table and AgentOperations
-// lists it, so what crab-town tells the agent it can do is exactly what it
-// accepts.
-var agentOperations = []Operation{
-	{Name: "say", Desc: "自分の頭上に吹き出しで発言する（町の画面と Nostr の公開状態に出る）。payload: {\"text\": \"...\"}", handle: (*Client).handleSay},
-}
-
-// AgentOperations returns the agent-chosen operations this client accepts.
-func AgentOperations() []Operation {
-	return append([]Operation(nil), agentOperations...)
-}
-
-func lookupOperation(m string) (Operation, bool) {
-	for _, op := range agentOperations {
-		if op.Name == m {
-			return op, true
-		}
-	}
-	return Operation{}, false
 }
 
 func (c *Client) handleSay(k *conn, obj map[string]any, id string, hasID bool) string {
@@ -449,4 +425,46 @@ func (c *Client) Said(ctx context.Context, s Said) (*int64, error) {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
+}
+
+// handleInvoke runs one declared operation the agent chose. Every refusal --
+// unknown operation, unbound binding, bad payload, the world saying no -- is
+// operation_rejected with the reason in detail: core treats any other code on
+// an invoke response as a protocol violation and closes the connection.
+func (c *Client) handleInvoke(k *conn, obj map[string]any, id string, hasID bool) string {
+	if !hasID {
+		return "" // nothing to answer to; core always sends an id
+	}
+	reject := func(detail string) string {
+		f := errFrame(id, "operation_rejected")
+		f["detail"] = detail
+		return c.reply(k, true, f)
+	}
+	bid, _ := str(obj, "binding_id")
+	k.mu.Lock()
+	_, bound := k.bindings[bid]
+	k.mu.Unlock()
+	if !bound {
+		return reject("binding が確認されていない")
+	}
+	name, _ := str(obj, "operation")
+	var op *Operation
+	for _, o := range c.handler.Operations() {
+		if o.Name == name {
+			op = &o
+			break
+		}
+	}
+	if op == nil {
+		return reject("crab-town に " + strconv.Quote(name) + " という操作はない")
+	}
+	payload, ok := obj["payload"].(map[string]any)
+	if !ok {
+		return reject("payload はオブジェクトで渡す")
+	}
+	result, err := op.Run(payload)
+	if err != nil {
+		return reject(strings.TrimPrefix(err.Error(), ErrRejected.Error()+": "))
+	}
+	return c.reply(k, true, map[string]any{"id": id, "m": "ok", "result": result})
 }

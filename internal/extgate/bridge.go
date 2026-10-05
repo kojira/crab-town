@@ -6,6 +6,7 @@ import (
 	"log"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"github.com/kojira/crab-town/internal/world"
 )
@@ -21,13 +22,21 @@ type Bridge struct {
 	Actor  string // the agent's actor in the world
 	Client *Client
 
+	// Tick timings (see tick.go). TickInterval 0 = no tick.
+	TickInterval time.Duration
+	TalkQuiet    time.Duration
+	TickStale    time.Duration
+	Now          func() time.Time // nil = time.Now (tests fix it)
+
 	origin atomic.Uint64
+	tick   tickState
 }
 
 // NewBridge wires cfg to w. Call Run to connect.
 func NewBridge(w *world.World, cfg Config) *Bridge {
 	b := &Bridge{World: w, Actor: cfg.Actor}
 	b.Client = New(cfg, b)
+	b.tickFromEnv()
 	return b
 }
 
@@ -38,6 +47,7 @@ func (b *Bridge) Run(ctx context.Context) {
 	go b.Client.Run(ctx)
 	queue := make(chan Said, 32)
 	go b.sendLoop(ctx, queue)
+	go b.tickLoop(ctx)
 	for {
 		select {
 		case <-ctx.Done():
@@ -117,6 +127,7 @@ func (b *Bridge) toSaid(ev world.Event) (Said, bool) {
 	default:
 		return Said{}, false
 	}
+	b.noteEvent(what, ev.Type == world.EventTalk)
 	n := b.origin.Add(1)
 	origin := fmt.Sprintf("crab-town:%s:%d:%d", ev.Type, ev.Time.UnixNano(), n)
 	return Said{Origin: origin, Text: b.describe(what), AuthorLabel: label(ev.By)}, true
@@ -145,10 +156,10 @@ func (b *Bridge) describe(what string) string {
 	} else {
 		sb.WriteString("あなたの現在地: 不明\n")
 	}
-	sb.WriteString("crab-town で今取れる操作:")
-	for _, op := range AgentOperations() {
-		sb.WriteString("\n- " + op.Name + ": " + op.Desc)
-	}
+	sb.WriteString(b.View() + "\n")
+	sb.WriteString("このターンであなたが書いた本文は、頭上の吹き出しとして町の画面と Nostr の公開状態に出る\n")
+	sb.WriteString("crab-town で今取れる操作（ツールとして呼べる）:")
+	sb.WriteString(Listing(b.Operations()))
 	return sb.String()
 }
 
@@ -176,7 +187,13 @@ func (b *Bridge) OnSay(_, _, text string) error {
 
 // OnActivity implements Handler. A turn starting or ending is a notice from
 // core, not something the agent chose: the world does not react to it.
-func (b *Bridge) OnActivity(_, _, _, _ string) {}
+// It only feeds the tick's "is the agent busy" bookkeeping.
+func (b *Bridge) OnActivity(_, _, activityID, state string) { b.noteActivity(activityID, state) }
 
 // OnDisconnect implements Handler. Nothing in the world depends on the link.
-func (b *Bridge) OnDisconnect() {}
+// Turns of a lost connection will not report ended, so forget them.
+func (b *Bridge) OnDisconnect() {
+	b.tick.mu.Lock()
+	b.tick.active = nil
+	b.tick.mu.Unlock()
+}

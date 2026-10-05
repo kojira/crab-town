@@ -138,14 +138,14 @@ func TestTalkSaidDescribesEventAndOperations(t *testing.T) {
 	wa, _ := w.Where("nostarou")
 	for _, want := range []string{
 		"出来事: nostr:abcdef0123456789（guest） が のすたろう に話しかけた", "本文: 元気？",
-		"の現在地: " + wa.String(), "今取れる操作:",
+		"の現在地: " + wa.String(), "今取れる操作",
 	} {
 		if !strings.Contains(text, want) {
 			t.Errorf("said text lacks %q", want)
 		}
 	}
-	// the operations listed are exactly the dispatch table
-	ops := AgentOperations()
+	// the operations listed are exactly the declared table
+	ops := b.Operations()
 	if len(ops) == 0 {
 		t.Fatal("no operations")
 	}
@@ -170,25 +170,6 @@ func TestTalkSaidDescribesEventAndOperations(t *testing.T) {
 		t.Fatal(err)
 	}
 	cc.expectQuiet(150 * time.Millisecond)
-}
-
-// Every operation listed is accepted, and nothing outside the list is.
-func TestOperationsTableIsWhatIsAccepted(t *testing.T) {
-	fc := newFakeCore(t)
-	_, b := startBridge(t, fc)
-	cc := fc.accept()
-	cc.helloBind()
-	waitBound(t, b)
-	for _, op := range AgentOperations() {
-		cc.send(map[string]any{"id": "op-" + op.Name, "m": op.Name, "binding_id": testBinding, "payload": map[string]any{"text": "x"}})
-		if r := cc.recv(); r["code"] == "unknown_message" {
-			t.Errorf("listed operation %q is not accepted: %v", op.Name, r)
-		}
-	}
-	cc.send(map[string]any{"id": "op-move", "m": "move", "binding_id": testBinding, "payload": map[string]any{}})
-	if r := cc.recv(); r["code"] != "unknown_message" {
-		t.Errorf("unlisted move: %v", r)
-	}
 }
 
 // Broken frames close the connection; the gateway then reconnects and says hello again.
