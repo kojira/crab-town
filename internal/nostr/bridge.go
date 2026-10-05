@@ -15,7 +15,7 @@ import (
 
 // DefaultRelays are used when CRAB_NOSTR_RELAYS is unset. All of them forward
 // ephemeral events (checked by hand, see README).
-var DefaultRelays = []string{"wss://yabu.me", "wss://relay-jp.nostr.wirednet.jp", "wss://n.kojira.io"}
+var DefaultRelays = []string{"wss://r.kojira.io", "wss://n.kojira.io", "wss://x.kojira.io"}
 
 // Config is the Nostr bridge configuration (from CRAB_NOSTR_* env vars).
 type Config struct {
