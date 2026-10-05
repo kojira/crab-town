@@ -23,8 +23,16 @@ const CrabView = (() => {
   }
 
   // Pick fit / scroll from the space the page has, then size the stage.
+  // While the talk input has focus a phone keyboard shrinks the window height:
+  // keep the map as it is (re-tiling then would jump and squash it). Every
+  // caller (resize, world events, the chat toggle) goes through this guard.
+  let laidW = -1;
+  const typing = () => document.activeElement && document.activeElement.id === "talkText";
   function layout() {
-    const availW = document.documentElement.clientWidth - 16;
+    const cw = document.documentElement.clientWidth;
+    if (typing() && st.mode === "scroll" && cw === laidW) return;
+    laidW = cw;
+    const availW = cw - 16;
     const mode = V.chooseMode(availW, townW());
     if (mode !== st.mode) { st.mode = mode; document.body.classList.toggle("narrow", mode === "scroll"); }
     if (mode === "fit") { cv.style.width = cv.style.height = stage.style.height = ""; window.LABEL_SCALE = 1; return; }
@@ -115,14 +123,7 @@ const CrabView = (() => {
     setTimeout(() => requestAnimationFrame(drawMinimap), 100);
   }
 
-  // A phone keyboard opening/closing resizes the window height only; while the
-  // talk input has focus that must not shrink the map (it would re-tile and jump).
-  let lastW = document.documentElement.clientWidth;
-  window.addEventListener("resize", () => {
-    const w = document.documentElement.clientWidth, typing = document.activeElement && document.activeElement.id === "talkText";
-    if (typing && w === lastW && st.mode === "scroll") return;
-    lastW = w; layout();
-  });
+  window.addEventListener("resize", () => { layout(); });
   const talkIn = document.getElementById("talkText");
   if (talkIn) talkIn.addEventListener("blur", () => setTimeout(layout, 200));
   layout();
