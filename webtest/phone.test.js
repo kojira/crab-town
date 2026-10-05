@@ -70,9 +70,12 @@ test("the knock button has a house picker, not a fixed nostarou-house", () => {
   const js = fs.readFileSync(path.join(__dirname, "../web/nostr.js"), "utf8");
   assert.match(html, /<select[^>]*id="knockTo"/);
   assert.doesNotMatch(js, /type: "knock", room: "nostarou-house"/);
-  // phone text sizes: chat 16px, status / buttons 15px
+  // phone text sizes: chat 17px+ (bigger than the 16px controls), status / buttons 15px
   const css = html.slice(html.indexOf("<style>"), html.indexOf("</style>"));
-  assert.match(css, /body\.narrow #log \{[^}]*font-size:16px/);
+  const logPx = Number((css.match(/body\.narrow #log \{[^}]*font-size:(\d+)px/) || [])[1]);
+  assert.ok(logPx >= 17, "phone chat log font-size >= 17px, got " + logPx);
+  const widePx = Number((css.match(/\n  #log \{[^}]*font:(\d+)px/) || [])[1]);
+  assert.ok(widePx >= 16, "wide chat log font >= 16px, got " + widePx);
   assert.match(css, /body\.narrow #status \{[^}]*font-size:15px/);
   assert.match(css, /body\.narrow button \{[^}]*font-size:15px/);
 });

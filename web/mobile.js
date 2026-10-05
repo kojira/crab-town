@@ -23,8 +23,16 @@ const CrabView = (() => {
   }
 
   // Pick fit / scroll from the space the page has, then size the stage.
+  // While the talk input has focus a phone keyboard shrinks the window height:
+  // keep the map as it is (re-tiling then would jump and squash it). Every
+  // caller (resize, world events, the chat toggle) goes through this guard.
+  let laidW = -1;
+  const typing = () => document.activeElement && document.activeElement.id === "talkText";
   function layout() {
-    const availW = document.documentElement.clientWidth - 16;
+    const cw = document.documentElement.clientWidth;
+    if (typing() && st.mode === "scroll" && cw === laidW) return;
+    laidW = cw;
+    const availW = cw - 16;
     const mode = V.chooseMode(availW, townW());
     if (mode !== st.mode) { st.mode = mode; document.body.classList.toggle("narrow", mode === "scroll"); }
     if (mode === "fit") { cv.style.width = cv.style.height = stage.style.height = ""; window.LABEL_SCALE = 1; return; }
@@ -42,7 +50,9 @@ const CrabView = (() => {
     stage.style.height = stageH + "px";
     const c = content();
     st.mScale = V.minimapScale(townW(), townH(), Math.min(140, stage.clientWidth * 0.4), 60);
-    mini.width = townW() * st.mScale; mini.height = townH() * st.mScale;
+    const mw = townW() * st.mScale, mh = townH() * st.mScale; // assigning clears it: only on change
+    if (mini.width !== mw) mini.width = mw;
+    if (mini.height !== mh) mini.height = mh;
     if (old !== st.tile) { // keep the same tile in the middle of the view
       const k = st.tile / old, hw = stage.clientWidth / 2, hh = stage.clientHeight / 2;
       scrollTo({ x: (keep.x + hw) * k - hw, y: (keep.y + hh) * k - hh });
@@ -114,6 +124,8 @@ const CrabView = (() => {
   }
 
   window.addEventListener("resize", () => { layout(); });
+  const talkIn = document.getElementById("talkText");
+  if (talkIn) talkIn.addEventListener("blur", () => setTimeout(layout, 200));
   layout();
   drawMinimap();
   return { onWorld, setSelf, centerOn, layout, state: st };

@@ -4,7 +4,8 @@ package world
 const EventSay = "say"
 
 // MaxSpeech caps the bubble text (runes); the rest is cut with an ellipsis.
-const MaxSpeech = 140
+// It is a safety cap only: an agent reply fits whole and the bubble wraps it.
+const MaxSpeech = 2000
 
 // Speak emits a say event for the actor. It does not change the actor's state
 // and nothing leaves crab-town: it is display only.

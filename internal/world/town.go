@@ -95,6 +95,7 @@ func labomiFurniture() []*Furniture {
 		f.Function, f.State, f.Access = fn, state, access
 		return f
 	}
+	sofa := func(f *Furniture, seat Pos) *Furniture { f.Seat = &seat; return f }
 	return []*Furniture{
 		// LDK: kitchen corner, dining, living
 		deco("counter", KindCounter, "キッチン台", 1, 1, 3, 1),
@@ -106,7 +107,7 @@ func labomiFurniture() []*Furniture {
 		deco("chair2", KindChair, "椅子", 5, 5, 1, 1),
 		use("window", KindWindow, "窓", "timeline", StateTalking, 10, 0, 4, 1, Pos{11, 1}),
 		flat("rug", KindHeartRug, "ハートのラグ", 10, 2, 4, 2),
-		use("sofa", KindPinkSofa, "ピンクのソファ", "visitors", StateTalking, 10, 5, 4, 2, Pos{11, 4}),
+		sofa(use("sofa", KindPinkSofa, "ピンクのソファ", "visitors", StateTalking, 10, 5, 4, 2, Pos{11, 4}), Pos{11, 5}),
 		deco("ringlight", KindRingLight, "自撮りライト", 15, 1, 1, 1),
 		deco("plush", KindPlush, "ぬいぐるみ", 15, 8, 1, 1),
 		deco("plant", KindPlant, "観葉植物", 1, 8, 1, 1),

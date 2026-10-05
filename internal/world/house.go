@@ -141,6 +141,11 @@ func shiftFurniture(fs []*Furniture, dx int) []*Furniture {
 		if f.Function != "" {
 			f.Access.X += dx
 		}
+		if f.Seat != nil {
+			seat := *f.Seat
+			seat.X += dx
+			f.Seat = &seat
+		}
 	}
 	return fs
 }

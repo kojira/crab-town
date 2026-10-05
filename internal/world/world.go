@@ -91,6 +91,7 @@ type Furniture struct {
 	Pos      Pos    `json:"pos"`                // top-left occupied tile (blocked for walking)
 	Size     Size   `json:"size"`               // occupied tiles from Pos (zero = 1x1)
 	Access   Pos    `json:"access"`             // tile the actor stands on to use it
+	Seat     *Pos   `json:"seat,omitempty"`     // sofa: tile the actor sits on once it arrives (on the furniture)
 	State    string `json:"state"`              // actor state while using it
 	Walkable bool   `json:"walkable,omitempty"` // flat (rug, mat, desk chair): does not block
 }
@@ -484,6 +485,9 @@ func (w *World) arriveLocked(a *Actor, r *Room) []Event {
 	}
 	a.Using = f.ID
 	a.State = f.State
+	if f.Seat != nil { // sit on the furniture itself, not in front of it
+		a.Pos = *f.Seat
+	}
 	fc := *f
 	return []Event{
 		{Type: "actor", Room: r.ID, Actor: copyActor(a), By: a.by},
