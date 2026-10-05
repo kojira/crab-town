@@ -132,7 +132,9 @@ type Actor struct {
 	Using  string `json:"using,omitempty"`  // furniture id currently in use
 	Target *Pos   `json:"target,omitempty"` // walking destination
 	Hidden bool   `json:"hidden,omitempty"` // view only: position/state withheld from this viewer
+	Pubkey string `json:"pubkey,omitempty"` // visitor's Nostr pubkey (hex): the viewer shows its kind:0 picture
 
+	actsAs  string // visitor: whose house rights it walks with (Join)
 	pending string // furniture to use on arrival
 	by      string // who requested the current walk
 	path    []Pos
@@ -359,7 +361,7 @@ func (w *World) Move(by, actorID string, to Pos) error {
 		w.mu.Unlock()
 		return err
 	}
-	if !r.canCommand(by, a) || (r.inBounds(to) && !r.canEnter(by, to)) {
+	if !r.canCommand(by, a) || (r.inBounds(to) && !r.canEnter(w.enterAs(by), to)) {
 		w.mu.Unlock()
 		return ErrForbidden
 	}
@@ -413,7 +415,7 @@ func (w *World) Interact(by, actorID, furnitureID string) error {
 		w.mu.Unlock()
 		return ErrNotUsable
 	}
-	if !r.canEnter(by, f.Access) {
+	if !r.canEnter(w.enterAs(by), f.Access) {
 		w.mu.Unlock()
 		return ErrForbidden
 	}

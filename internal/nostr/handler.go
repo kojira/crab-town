@@ -51,7 +51,7 @@ type Handler struct {
 	World      *world.World
 	Town       string        // this town's pubkey (hex): commands must p-tag it
 	Owner      string        // owner pubkey (hex): full rights
-	OwnerActor string        // world id the owner acts as (e.g. "nostarou")
+	OwnerActor string        // whose house rights the owner's avatar walks with (e.g. "nostarou"); never driven by the owner
 	TalkTo     string        // actor a talk goes to when "to" is omitted (e.g. "nostarou")
 	Window     time.Duration // accepted |now - created_at|
 	// NotBefore: events created before this (the process start) are dropped.
@@ -130,6 +130,9 @@ func (h *Handler) Handle(ev *Event) Result {
 		return Result{Err: err}
 	}
 	res := Result{Role: h.Role(ev.PubKey), Reply: true}
+	if res.Role == RoleOwner {
+		h.ownerJoin(ev.PubKey)
+	}
 	var cmd Command
 	if err := json.Unmarshal([]byte(ev.Content), &cmd); err != nil {
 		res.Err = world.ErrBadRequest
@@ -141,11 +144,7 @@ func (h *Handler) Handle(ev *Event) Result {
 		// read only: the public view that is broadcast anyway
 		res.Snapshot = true
 	case "knock":
-		by := GuestID(ev.PubKey)
-		if res.Role == RoleOwner {
-			by = h.OwnerActor
-		}
-		res.Err = h.World.Knock(by, cmd.Room, clip(cmd.Message, 280))
+		res.Err = h.World.Knock(GuestID(ev.PubKey), cmd.Room, clip(cmd.Message, 280))
 	case "talk":
 		// anyone may talk; the sender is named by pubkey, the role says who it is
 		to := cmd.To
@@ -158,15 +157,28 @@ func (h *Handler) Handle(ev *Event) Result {
 			res.Err = ErrGuestOnly
 			break
 		}
+		// The owner walks their own avatar. Naming another actor (nostarou,
+		// who moves by itself through extgate) is refused by the world.
+		self := GuestID(ev.PubKey)
 		actor := cmd.Actor
 		if actor == "" {
-			actor = h.OwnerActor
+			actor = self
 		}
-		res.Err = h.World.Move(h.OwnerActor, actor, world.Pos{X: cmd.X, Y: cmd.Y})
+		res.Err = h.World.Move(self, actor, world.Pos{X: cmd.X, Y: cmd.Y})
 	default:
 		res.Err = ErrUnknown
 	}
 	return res
+}
+
+// OwnerSpawn is where the owner's avatar appears: the garden, by the stones.
+var OwnerSpawn = world.Pos{X: world.GardenX + 2, Y: 5}
+
+// ownerJoin puts the owner's own avatar (id = GuestID, the same id its talk
+// and knock carry) in the garden the first time the owner is heard from. It
+// walks with the house rights of OwnerActor; visibility is unchanged.
+func (h *Handler) ownerJoin(pubkey string) {
+	h.World.Join(world.Actor{ID: GuestID(pubkey), Name: "オーナー", Pubkey: pubkey, RoomID: world.TownID, Pos: OwnerSpawn}, h.OwnerActor)
 }
 
 func clip(s string, n int) string {

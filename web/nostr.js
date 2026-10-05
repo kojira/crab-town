@@ -18,9 +18,9 @@ const ROOM_SPOT = cfg.roomSpot || { x: 29, y: 15 };
 const seen = new Set(); // state event ids already applied (several relays deliver the same event)
 const sockets = [];
 let me = null; // NIP-07 pubkey, once known
-let myActor = null; // world actor this viewer drives (set once the town answers "owner")
-// "you" in the chat is only the logged-in pubkey's own talk. The actor the
-// owner drives (nostarou) speaks for the agent, so its say stays its own name.
+let myActor = null; // the owner's own avatar (set once the town answers "owner")
+// "you" in the chat is only the logged-in pubkey's own talk. nostarou moves
+// and speaks by itself (extgate); the owner walks their own avatar.
 const LISTENING = cfg.listening || []; // actors someone receives knocks for (extgate)
 const knockList = () => CrabViewport.knockTargets(Object.values(rooms)[0], actors, LISTENING);
 const chatCtx = () => ({ selfGuestId: me ? "nostr:" + me.slice(0, 16) : null, houses: knockList() });
@@ -46,9 +46,10 @@ function apply(ev) {
     for (const r of ev.rooms) rooms[r.id] = r;
     const r0 = ev.rooms[0];
     if (r0 && (cv.width !== r0.width * T || cv.height !== r0.height * T)) { cv.width = r0.width * T; cv.height = r0.height * T; }
-    for (const a of ev.actors) actors[a.id] = a;
+    for (const a of ev.actors) { actors[a.id] = a; loadAvatar(a); }
   } else if (ev.type === "actor" && ev.actor) {
     actors[ev.actor.id] = ev.actor;
+    loadAvatar(ev.actor);
   } else if (ev.type === "occupancy") {
     const r = rooms[ev.room];
     if (r) { r.in_use = ev.in_use || []; r.hidden_zones = ev.hidden_zones || []; }
@@ -60,12 +61,17 @@ function apply(ev) {
     if (typeof speech !== "undefined") speech[ev.actor.id] = { text: ev.message || "", until: performance.now() + SPEECH_MS };
   } else if (ev.type === "result") {
     if (!me || ev.p === me) say(CrabChat.resultText(ev));
-    if (me && ev.p === me && ev.role === "owner" && !myActor) { myActor = cfg.ownerActor || "nostarou"; CrabView.setSelf(myActor); }
+    if (me && ev.p === me && ev.role === "owner" && !myActor) { myActor = ownAvatarId(me); CrabView.setSelf(myActor); }
   }
   updateStatus();
   updateKnockTargets();
   CrabView.onWorld();
 }
+
+// A logged-in person's actor carries its pubkey: fetch its kind:0 (r/n/x relays).
+function loadAvatar(a) { if (a && a.pubkey) CrabAvatar.load(a.pubkey, RELAYS, verifyEvent); }
+// the owner's avatar id: the same id its talk and knock carry
+const ownAvatarId = (pk) => "nostr:" + pk.slice(0, 16);
 
 // The knock menu lists every house; a house nobody listens at says so.
 let knockKey = "";
@@ -147,6 +153,8 @@ async function login() {
   try { me = await window.nostr.getPublicKey(); } catch (e) { say("NIP-07: " + e); return; }
   $("who").textContent = me.slice(0, 12) + "…";
   for (const b of document.querySelectorAll(".cmd")) b.disabled = false;
+  CrabAvatar.load(me, RELAYS, verifyEvent);
+  requestSnapshot(); // a signed command: the owner's avatar joins the garden
 }
 
 cv.addEventListener("click", (e) => {

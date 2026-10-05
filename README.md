@@ -182,8 +182,9 @@ crab-town を opencrab core の External gate（UDS）につなぐ gateway と�
   - `23411` 状態（crab-town → クライアント）。crab-town 専用の鍵で署名。
 - **コマンド** `kind:23410`, `tags: [["p", <town pubkey>], ["t","crab-town"]]`, `content` は JSON:
   - `{"type":"snapshot"}` 公開ビューのスナップショットを要求（誰でも可）
-  - `{"type":"move","x":29,"y":15}` のすたろうを移動（**オーナーのみ**。`actor` 省略時はオーナーのアクター）
-  - `{"type":"knock","room":"nostarou-house","message":"..."}` ノック（来客も可。`room` は家 id: `labomi-house` / `nostarou-house`）。Pages ビューアはノック先を家ごとに選べる。`config.js` の `listening`（extgate につながっているアクター）に持ち主がいない家へのノックは「その住人は今つながっていないので届かない。町の出来事として記録だけ」と表示する（ただし extgate のエージェントには町のノックが家を問わず出来事として届く）。オーナーのアクターが他人の家に入るには `CRAB_INVITED`（例 `labomi-house=nostarou`）が要る
+  - `{"type":"move","x":29,"y":15}` **オーナー自身のアバター**を移動（**オーナーのみ**）。オーナーのアバターは id `nostr:<pubkey 先頭16桁>`（talk / knock の `by` と同じ）で、オーナーの最初のコマンド（ログイン時のスナップショット要求）で庭 (24,5) に現れる。歩ける範囲は庭と `CRAB_NOSTR_OWNER_ACTOR`（既定 `nostarou`）が入れる家（その家の owner / invited ゾーン）。可視性は変えない（のすたろうの寝室に入れば公開ビューでは伏せられる）。他のアクター（のすたろう・らぼみ）を `actor` で指定すると 403。のすたろうは extgate 経由で自分で動く
+  - ビューアは `pubkey` を持つアクター（ログインした人）を kind:0 の `picture` を丸く切り抜いたアイコン（タイルサイズ）で描く。kind:0 は `relays`（r/n/x.kojira.io）から取得し署名を検証。picture が無い・読み込めないときは名前の頭文字
+  - `{"type":"knock","room":"nostarou-house","message":"..."}` ノック（来客も可。`room` は家 id: `labomi-house` / `nostarou-house`）。Pages ビューアはノック先を家ごとに選べる。`config.js` の `listening`（extgate につながっているアクター）に持ち主がいない家へのノックは「その住人は今つながっていないので届かない。町の出来事として記録だけ」と表示する（ただし extgate のエージェントには町のノックが家を問わず出来事として届く）。オーナーのアバターが他人の家に入るには `CRAB_INVITED`（例 `labomi-house=nostarou`）が要る
   - `{"type":"talk","text":"..."}` のすたろうに話しかける（来客も可。平文・公開。280 文字まで、超えたら拒否。`to` 省略時は `CRAB_NOSTR_TALK_TO`、既定 `nostarou`）。extgate 経由で `said` として渡る
 - **状態** `kind:23411`, `tags: [["t","crab-town"], ...]`, `content` は `/world` WebSocket と同じ JSON
   （`snapshot` / `actor` / `occupancy` / `knock` / `talk` / `say`。`say` は吹き出しで、非公開ゾーンからでも文面は公開・位置は伏せる）。各コマンドへの返事は
@@ -200,7 +201,7 @@ crab-town を opencrab core の External gate（UDS）につなぐ gateway と�
 |---|---|---|
 | `CRAB_NOSTR_KEY_FILE` | （無効） | crab-town 専用の署名鍵。無ければ 0600 で新規作成。0600 以外は起動拒否。リポジトリに置かない |
 | `CRAB_NOSTR_OWNER` | （なし = 全員来客） | オーナーの npub または hex（kojira: `npub1k0jrarx8um0lyw3nmysn50539ky4k8p7gfgzgrsvn8d7lccx3d0s38dczd`） |
-| `CRAB_NOSTR_OWNER_ACTOR` | `nostarou` | オーナーとして動かすアクター |
+| `CRAB_NOSTR_OWNER_ACTOR` | `nostarou` | オーナーのアバターが借りる家の権限（このアクターが owner / invited の家に入れる）。このアクター自体はオーナーが動かさない |
 | `CRAB_NOSTR_TALK_TO` | `nostarou` | `talk` で `to` 省略時の宛先アクター |
 | `CRAB_NOSTR_RELAYS` | `wss://r.kojira.io,wss://n.kojira.io,wss://x.kojira.io` | 購読・送信するリレー（どれもエフェメラル kind:23410/23411 を転送する） |
 | `CRAB_NOSTR_WINDOW` | `2m` | `created_at` の許容幅 |
