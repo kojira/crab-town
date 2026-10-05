@@ -195,6 +195,12 @@ func (w *World) FilterEvent(viewer string, ev Event) (Event, bool) {
 	occ := w.occupancyLocked(room)
 	occ.add(room, ev.Actor) // the event's own position counts even if it has moved on
 	if !room.canSeeTile(viewer, ev.Actor.Pos, occ) {
+		// what an actor says is public (it answers visitors); only where it
+		// stands stays private, so the speaker is redacted, not the words.
+		if ev.Type == EventSay {
+			ev.Actor = room.redactActor(viewer, ev.Actor, occ)
+			return ev, true
+		}
 		if ev.Type != "actor" {
 			return Event{}, false
 		}

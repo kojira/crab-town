@@ -216,6 +216,9 @@ func errFrame(id, code string) map[string]any {
 func (c *Client) handle(k *conn, obj map[string]any) string {
 	m, _ := str(obj, "m")
 	id, hasID := reqID(obj)
+	if fn, ok := agentMessages[m]; ok {
+		return fn(c, k, obj, id, hasID)
+	}
 	switch m {
 	case "bind":
 		bid, _ := str(obj, "binding_id")
@@ -232,23 +235,6 @@ func (c *Client) handle(k *conn, obj map[string]any) string {
 		}
 		k.bindings[bid] = addr
 		k.mu.Unlock()
-		return c.reply(k, true, map[string]any{"id": id, "m": "ok"})
-	case "say":
-		bid, _ := str(obj, "binding_id")
-		payload, okP := obj["payload"].(map[string]any)
-		if !hasID || !validUUID(bid) || !okP {
-			return c.reply(k, hasID, errFrame(id, "bad_request"))
-		}
-		text, okT := nonempty(payload, "text")
-		k.mu.Lock()
-		addr, bound := k.bindings[bid]
-		k.mu.Unlock()
-		if !okT || !bound {
-			return c.reply(k, true, errFrame(id, "external_rejected"))
-		}
-		if err := c.handler.OnSay(bid, addr, text); err != nil {
-			return c.reply(k, true, errFrame(id, "external_rejected"))
-		}
 		return c.reply(k, true, map[string]any{"id": id, "m": "ok"})
 	case "activity":
 		bid, _ := str(obj, "binding_id")
@@ -269,6 +255,43 @@ func (c *Client) handle(k *conn, obj map[string]any) string {
 	default: // hello/said from core, unknown m (turn_failed, invoke, ...)
 		return c.reply(k, hasID, errFrame(id, "unknown_message"))
 	}
+}
+
+// agentMessages are the core→gateway messages that carry something the agent
+// chose to do (as opposed to protocol plumbing: bind, activity, responses).
+// handle dispatches through this table, and AgentMessages lists it, so what
+// crab-town tells the agent it can do is exactly what it accepts.
+var agentMessages = map[string]func(c *Client, k *conn, obj map[string]any, id string, hasID bool) string{
+	"say": (*Client).handleSay,
+}
+
+// AgentMessages returns the agent-chosen messages this client accepts (sorted).
+func AgentMessages() []string {
+	out := make([]string, 0, len(agentMessages))
+	for m := range agentMessages {
+		out = append(out, m)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func (c *Client) handleSay(k *conn, obj map[string]any, id string, hasID bool) string {
+	bid, _ := str(obj, "binding_id")
+	payload, okP := obj["payload"].(map[string]any)
+	if !hasID || !validUUID(bid) || !okP {
+		return c.reply(k, hasID, errFrame(id, "bad_request"))
+	}
+	text, okT := nonempty(payload, "text")
+	k.mu.Lock()
+	addr, bound := k.bindings[bid]
+	k.mu.Unlock()
+	if !okT || !bound {
+		return c.reply(k, true, errFrame(id, "external_rejected"))
+	}
+	if err := c.handler.OnSay(bid, addr, text); err != nil {
+		return c.reply(k, true, errFrame(id, "external_rejected"))
+	}
+	return c.reply(k, true, map[string]any{"id": id, "m": "ok"})
 }
 
 func (c *Client) reply(k *conn, send bool, v map[string]any) string {
