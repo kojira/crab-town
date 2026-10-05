@@ -2,3 +2,4 @@
 tokens.json
 *.tokens.json
 .env
+/bin/

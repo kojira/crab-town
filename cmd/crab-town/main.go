@@ -12,6 +12,7 @@ import (
 	"time"
 
 	crabtown "github.com/kojira/crab-town"
+	"github.com/kojira/crab-town/internal/nostr"
 	"github.com/kojira/crab-town/internal/server"
 	"github.com/kojira/crab-town/internal/world"
 )
@@ -48,6 +49,21 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	nostrCfg, err := nostr.LoadConfig(os.Getenv)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if nostrCfg != nil {
+		bridge, town, err := nostr.NewBridge(w, *nostrCfg)
+		if err != nil {
+			log.Fatal(err)
+		}
+		go bridge.Run(ctx)
+		log.Printf("nostr: enabled (town pubkey %s, owner set: %v, relays %v)", town, nostrCfg.Owner != "", nostrCfg.Relays)
+	} else {
+		log.Printf("nostr: disabled (no CRAB_NOSTR_KEY_FILE)")
+	}
 
 	go func() {
 		t := time.NewTicker(tick)
