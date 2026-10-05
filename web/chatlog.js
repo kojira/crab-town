@@ -139,6 +139,21 @@ const CrabChat = (() => {
   }
   if (vv && box) { vv.addEventListener("resize", lift); vv.addEventListener("scroll", lift); }
 
-  return { entry, resultText, add, system, error, setStatus, typing, keyboardInset, toggleLabel };
+  // History across tabs: state events are ephemeral (kind 23411), relays keep
+  // them for minutes at most, so the browser keeps the last talk/say/knock lines.
+  const HIST_KEY = "crab-town-chat-v1", HIST_MAX = 200;
+  const HIST_TYPES = { talk: 1, say: 1, knock: 1 };
+  function keep(list, item, max = HIST_MAX) {
+    if (!item || !item.id || !item.msg || !HIST_TYPES[item.msg.type] || list.some(x => x.id === item.id)) return list;
+    const out = list.concat([item]);
+    return out.length > max ? out.slice(out.length - max) : out;
+  }
+  function loadHistory(store) {
+    try { const v = JSON.parse((store && store.getItem(HIST_KEY)) || "[]"); return Array.isArray(v) ? v.filter(x => x && x.id && x.msg && HIST_TYPES[x.msg.type]) : []; }
+    catch { return []; }
+  }
+  function saveHistory(store, list) { try { store && store.setItem(HIST_KEY, JSON.stringify(list)); } catch { /* full / private mode */ } }
+
+  return { entry, resultText, add, system, error, setStatus, typing, keyboardInset, toggleLabel, keep, loadHistory, saveHistory, HIST_KEY };
 })();
 if (typeof module !== "undefined") module.exports = CrabChat;

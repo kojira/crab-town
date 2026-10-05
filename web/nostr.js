@@ -16,6 +16,9 @@ const RELAYS = (qs.get("relays") || (cfg.relays || []).join(",")).split(",").map
 const ROOM_SPOT = cfg.roomSpot || { x: 29, y: 15 };
 
 const seen = new Set(); // state event ids already applied (several relays deliver the same event)
+// chat history kept in the browser (relays drop the ephemeral state events within minutes)
+const store = (() => { try { return window.localStorage; } catch { return null; } })();
+let chatHistory = CrabChat.loadHistory(store);
 const sockets = [];
 let me = null; // NIP-07 pubkey, once known
 let myActor = null; // the owner's own avatar (set once the town answers "owner")
@@ -63,7 +66,7 @@ function apply(ev) {
   } else if (ev.type === "say" && ev.actor) {
     CrabChat.add(CrabChat.entry(ev, chatCtx()));
     if (live && ev.actor.id === talkActor()) CrabChat.typing("");
-    if (live && typeof speech !== "undefined") speech[ev.actor.id] = { text: ev.message || "", until: performance.now() + CrabTalk.speechMs(ev.message) };
+    if (live && !ev.replay && typeof speech !== "undefined") speech[ev.actor.id] = { text: ev.message || "", until: performance.now() + CrabTalk.speechMs(ev.message) };
   } else if (ev.type === "result") {
     if (!me || ev.p !== me) { /* someone else's command */ }
     else if (ev.cmd === "talk" && outbox.result(ev.e, ev.ok, ev.error)) onTalkResult(ev);
@@ -102,6 +105,8 @@ function onState(ev) {
   if (msg.type === "result") { msg.p = tag("p"); msg.e = tag("e"); }
   if (msg.type === "say" && !msg.reply_to && tag("reply_to")) msg.reply_to = tag("reply_to");
   msg.at = ev.created_at; msg.created_at = ev.created_at;
+  const kept = CrabChat.keep(chatHistory, { id: ev.id, msg });
+  if (kept !== chatHistory) { chatHistory = kept; CrabChat.saveHistory(store, chatHistory); }
   // stored events replayed before EOSE arrive in any order: sort them first
   if (!live) { backlog.push(msg); return; }
   applyOne(msg);
@@ -116,6 +121,8 @@ function applyOne(msg) {
 // first one), then draw it oldest first. Later events are drawn as they come.
 let live = false;
 const backlog = [];
+// lines saved by an earlier tab join the backlog (sorted with what the relays still have)
+for (const h of chatHistory) { seen.add(h.id); backlog.push(Object.assign({}, h.msg, { replay: true })); }
 let flushTimer = null;
 function onEose(s) {
   s.eose = true;
