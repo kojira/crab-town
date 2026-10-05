@@ -22,7 +22,7 @@ func (b *Bridge) Operations() []Operation {
 			}
 			w, h = r.Width, r.Height
 			for _, f := range r.Furniture {
-				if f.Function != "" {
+				if h := r.HouseAt(f.Access); f.Function != "" && (h == nil || h.CanOperate(b.Actor)) {
 					usable = append(usable, f)
 				}
 			}
@@ -31,6 +31,14 @@ func (b *Bridge) Operations() []Operation {
 	sort.Slice(usable, func(i, j int) bool { return usable[i].ID < usable[j].ID })
 
 	ops := []Operation{{
+		Name: "look",
+		Desc: "今の自分から見える範囲の地図（現在地・ゾーン・ドア・家具・他のアクター）をテキストで返す。町は何も変わらない",
+		Input: map[string]any{"type": "object", "properties": map[string]any{}},
+		Run: func(map[string]any) (any, error) {
+			return map[string]any{"map": b.View()}, nil
+		},
+		ReadOnly: true,
+	}, {
 		Name: "move",
 		Desc: fmt.Sprintf("自分（%s）を町のタイル (x, y) まで歩かせる。座標は左上が (0,0)、x は 0〜%d、y は 0〜%d。"+
 			"壁・家具のあるタイル、たどり着けないタイル、入る許可のない家の中は断られ、理由が返る。"+

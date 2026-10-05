@@ -20,6 +20,9 @@ type Operation struct {
 	// Run performs the operation for the agent's own actor. A non-nil error is
 	// returned to core as operation_rejected with the error text as detail.
 	Run func(payload map[string]any) (any, error)
+	// ReadOnly: the operation changes nothing in the world (declared effect
+	// read_only instead of state_change).
+	ReadOnly bool
 }
 
 // Declaration policy. dispatch=inline: core runs the call in the same turn and
@@ -30,7 +33,6 @@ const (
 	opDispatch  = "inline"
 	opSubEngine = "not_exposed"
 	opSharing   = "agent_bound"
-	opEffect    = "state_change"
 )
 
 // opCallers: core checks the turn's caller class against this list. crab-town
@@ -48,6 +50,13 @@ func sortOps(ops []Operation) []Operation {
 	return out
 }
 
+func (op Operation) effect() string {
+	if op.ReadOnly {
+		return "read_only"
+	}
+	return "state_change"
+}
+
 // Declarations renders ops as hello's operations array.
 func Declarations(ops []Operation) []any {
 	out := []any{}
@@ -62,7 +71,7 @@ func Declarations(ops []Operation) []any {
 			"dispatch":        opDispatch,
 			"sub_engine":      opSubEngine,
 			"sharing":         opSharing,
-			"effect":          opEffect,
+			"effect":          op.effect(),
 		})
 	}
 	return out

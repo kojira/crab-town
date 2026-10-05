@@ -2,6 +2,7 @@ package extgate
 
 import (
 	"encoding/json"
+	"fmt"
 	"slices"
 	"sort"
 	"strings"
@@ -69,7 +70,7 @@ func checkDeclarations(t *testing.T, raw any) []map[string]any {
 		}
 		if !slices.Contains([]any{"not_exposed", "blocked", "allowed"}, d["sub_engine"]) ||
 			!slices.Contains([]any{"agent_bound", "conversation_bound"}, d["sharing"]) ||
-			d["effect"] != "state_change" {
+			!slices.Contains([]any{"read_only", "state_change"}, d["effect"]) || (name == "look") != (d["effect"] == "read_only") {
 			t.Errorf("%s: bad policy %v/%v/%v", name, d["sub_engine"], d["sharing"], d["effect"])
 		}
 		out = append(out, d)
@@ -106,10 +107,10 @@ func TestHelloDeclaresMoveAndInteract(t *testing.T) {
 	for _, d := range decls {
 		names = append(names, d["name"].(string))
 	}
-	if strings.Join(names, ",") != "interact,move" {
+	if strings.Join(names, ",") != "interact,look,move" {
 		t.Fatalf("declared %v", names)
 	}
-	mv := decls[1]["input_schema"].(map[string]any)
+	mv := decls[2]["input_schema"].(map[string]any)
 	props := mv["properties"].(map[string]any)
 	for _, k := range []string{"x", "y"} {
 		if p := props[k].(map[string]any); p["type"] != "integer" {
@@ -261,4 +262,92 @@ func TestInvokeInteract(t *testing.T) {
 		a, _ := w.Actor("nostarou")
 		return a.Using == "bookshelf"
 	})
+}
+
+// The map in said shows what the agent's actor can see and nothing else:
+// labomi's private rooms (bedroom, toilet, ...) and what is inside them never
+// appear; the agent's own house and the public areas do.
+func TestSaidMapHidesInvisibleZones(t *testing.T) {
+	fc := newFakeCore(t)
+	w, b := startBridge(t, fc)
+	cc := fc.accept()
+	cc.helloBind()
+	waitBound(t, b)
+	if err := w.Talk("nostr:abcdef0123456789", "guest", "nostarou", "どこ？"); err != nil {
+		t.Fatal(err)
+	}
+	said := cc.recv()
+	text, _ := said["text"].(string)
+	cc.send(map[string]any{"id": said["id"], "m": "ok", "seq": 1})
+	checkMap(t, w, text)
+
+	// look returns the same map
+	r := invoke(cc, "look-1", "look", map[string]any{})
+	res, _ := r["result"].(map[string]any)
+	m, _ := res["map"].(string)
+	if r["m"] != "ok" || m == "" || !strings.Contains(text, m) {
+		t.Fatalf("look = %v", r)
+	}
+}
+
+func checkMap(t *testing.T, w *world.World, text string) {
+	t.Helper()
+	snap := w.Snapshot()
+	view := w.ViewSnapshot("nostarou")
+	hidden := map[string]bool{}
+	for _, id := range view.Rooms[0].HiddenZones {
+		hidden[id] = true
+	}
+	if len(hidden) == 0 {
+		t.Fatal("fixture: nostarou should not see some of labomi's zones")
+	}
+	r := snap.Rooms[0]
+	for _, z := range r.Zones {
+		line := fmt.Sprintf("%s/%s x%d-%d", z.House, z.Name, z.Rect.X, z.Rect.X+z.Rect.W-1)
+		if z.House == "" {
+			line = fmt.Sprintf("%s x%d-%d", z.Name, z.Rect.X, z.Rect.X+z.Rect.W-1)
+		}
+		if got := strings.Contains(text, line); got == hidden[z.ID] {
+			t.Errorf("zone %s (hidden=%v) in said = %v", z.ID, hidden[z.ID], got)
+		}
+		if !hidden[z.ID] {
+			continue
+		}
+		for _, f := range r.Furniture {
+			if z.Rect.Contains(f.Pos) && strings.Contains(text, fmt.Sprintf("[%s](%d,%d)", f.Kind, f.Pos.X, f.Pos.Y)) {
+				t.Errorf("furniture %s inside hidden zone %s leaked", f.ID, z.ID)
+			}
+		}
+		for _, d := range r.Doors {
+			for _, dd := range []world.Pos{{X: 1}, {X: -1}, {Y: 1}, {Y: -1}} {
+				if z.Rect.Contains(world.Pos{X: d.X + dd.X, Y: d.Y + dd.Y}) && strings.Contains(text, fmt.Sprintf(" (%d,%d)", d.X, d.Y)) {
+					t.Errorf("door (%d,%d) of hidden zone %s leaked", d.X, d.Y, z.ID)
+				}
+			}
+		}
+	}
+	wa, _ := w.Where("nostarou")
+	for _, want := range []string{fmt.Sprintf("現在地: (%d,%d) %s", wa.Pos.X, wa.Pos.Y, wa.Zone), "ドア: ", "ソファ[sofa](50,6)", "らぼみ("} {
+		if !strings.Contains(text, want) {
+			t.Errorf("map lacks %q", want)
+		}
+	}
+}
+
+// An actor standing in a zone the agent cannot see is not listed with a position.
+func TestMapHidesActorInPrivateZone(t *testing.T) {
+	w := world.NewDefault()
+	b := &Bridge{World: w, Actor: "nostarou"}
+	if err := w.Move("labomi", "labomi", world.Pos{X: 3, Y: 16}); err != nil { // labomi's bedroom
+		t.Fatal(err)
+	}
+	for i := 0; i < 200; i++ {
+		w.Step()
+	}
+	if a, _ := w.Actor("labomi"); a.Pos != (world.Pos{X: 3, Y: 16}) {
+		t.Fatalf("labomi at %v", a.Pos)
+	}
+	if v := b.View(); strings.Contains(v, "らぼみ(") {
+		t.Errorf("hidden actor listed:\n%s", v)
+	}
 }
