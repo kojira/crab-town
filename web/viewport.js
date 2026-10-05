@@ -101,7 +101,7 @@ const CrabViewport = (() => {
   function knockTargets(room, actors, listening = []) {
     return ((room && room.houses) || []).map(h => {
       const o = actors && actors[h.owner];
-      return { id: h.id, owner: h.owner, label: (o && o.name ? o.name : h.owner) + "の家", reachable: listening.includes(h.owner) };
+      return { id: h.id, owner: h.owner, ownerName: o && o.name ? o.name : h.owner, label: (o && o.name ? o.name : h.owner) + "の家", reachable: listening.includes(h.owner) };
     });
   }
 

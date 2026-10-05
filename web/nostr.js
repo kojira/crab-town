@@ -162,7 +162,7 @@ $("toGarden").onclick = () => send({ type: "move", x: 24, y: 4 });
 $("knock").onclick = () => {
   const t = knockList().find(x => x.id === $("knockTo").value);
   send({ type: "knock", room: $("knockTo").value || "nostarou-house", message: "こんにちは" });
-  if (t && !t.reachable) say(`${t.label}には今だれも応答できない。ノックは町の出来事として記録されるだけ`);
+  if (t && !t.reachable) say(`${t.ownerName}は今つながっていないので、${t.label}へのノックは${t.ownerName}には届かない（町の出来事として記録されるだけ）`);
 };
 $("resync").onclick = () => send({ type: "snapshot" });
 // talk: plain text, public, up to 280 characters (the town refuses longer)

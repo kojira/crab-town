@@ -177,7 +177,7 @@ crab-town を opencrab core の External gate（UDS）につなぐ gateway と�
 - **コマンド** `kind:23410`, `tags: [["p", <town pubkey>], ["t","crab-town"]]`, `content` は JSON:
   - `{"type":"snapshot"}` 公開ビューのスナップショットを要求（誰でも可）
   - `{"type":"move","x":29,"y":15}` のすたろうを移動（**オーナーのみ**。`actor` 省略時はオーナーのアクター）
-  - `{"type":"knock","room":"nostarou-house","message":"..."}` ノック（来客も可。`room` は家 id: `labomi-house` / `nostarou-house`）。Pages ビューアはノック先を家ごとに選べる。`config.js` の `listening`（extgate につながっているアクター）に持ち主がいない家へのノックは「町の出来事として記録されるだけ（誰にも届かない）」と表示する。オーナーのアクターが他人の家に入るには `CRAB_INVITED`（例 `labomi-house=nostarou`）が要る
+  - `{"type":"knock","room":"nostarou-house","message":"..."}` ノック（来客も可。`room` は家 id: `labomi-house` / `nostarou-house`）。Pages ビューアはノック先を家ごとに選べる。`config.js` の `listening`（extgate につながっているアクター）に持ち主がいない家へのノックは「その住人は今つながっていないので届かない。町の出来事として記録だけ」と表示する（ただし extgate のエージェントには町のノックが家を問わず出来事として届く）。オーナーのアクターが他人の家に入るには `CRAB_INVITED`（例 `labomi-house=nostarou`）が要る
   - `{"type":"talk","text":"..."}` のすたろうに話しかける（来客も可。平文・公開。280 文字まで、超えたら拒否。`to` 省略時は `CRAB_NOSTR_TALK_TO`、既定 `nostarou`）。extgate 経由で `said` として渡る
 - **状態** `kind:23411`, `tags: [["t","crab-town"], ...]`, `content` は `/world` WebSocket と同じ JSON
   （`snapshot` / `actor` / `occupancy` / `knock` / `talk` / `say`。`say` は吹き出しで、非公開ゾーンからでも文面は公開・位置は伏せる）。各コマンドへの返事は

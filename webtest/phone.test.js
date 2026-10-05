@@ -58,7 +58,8 @@ test("knock targets: every house, and a house nobody listens at is marked", () =
     [["labomi-house", "らぼみの家", false], ["nostarou-house", "のすたろうの家", true]]);
   const line = Chat.entry({ type: "knock", by: "nostr:bbbbbbbbbbbbbbbb", house: "labomi-house", message: "やあ" }, { houses: ts });
   assert.match(line.text, /らぼみの家/);
-  assert.match(line.text, /誰にも届かない/);
+  assert.match(line.text, /らぼみは今つながっていないので届かない/);
+  assert.doesNotMatch(line.text, /誰にも/); // the town still records it (and extgate reports every knock)
   const ok = Chat.entry({ type: "knock", by: "labomi", house: "nostarou-house" }, { houses: ts });
   assert.doesNotMatch(ok.text, /届かない/);
   assert.match(Chat.resultText({ cmd: "move", ok: false, error: "forbidden", role: "owner" }), /招待/);
