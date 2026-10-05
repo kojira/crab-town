@@ -31,6 +31,12 @@
   #log .owner .who { color:#ffb347; } #log .guest .who { color:#7fc8ff; }
   #log .self .who { color:#8be08b; } #log .self .msg { color:#e8ffe8; }
   #log .system { color:#7a8a7a; font-size:12px; }
+  #log .dim { opacity:.5; } #log .err, #log .st.failed { color:#ff6b6b; }
+  #log .st { font-size:11px; color:#889; } #log .st.delivered { color:#7fbf7f; }
+  #log .retry { font-size:12px; padding:1px 8px; margin-left:4px; color:#ffb3b3; border-color:#a55; }
+  #logwrap { position:relative; }
+  #newLines { position:absolute; right:12px; bottom:6px; z-index:1; background:#ffd84a; color:#111; border:0; font-weight:bold; }
+  #typing { font-size:12px; color:#ffd84a; padding:2px 0; } #talkHint { font-size:12px; color:#ffb347; margin:4px 0 0; }
   /* narrow screens (set by mobile.js): fixed-scale map you drag around.
      Phones: text at 15-16px, the map fills the height down to the chat panel. */
   body.narrow { margin:8px; padding-bottom:var(--chat-h, 40vh); font-size:16px; }
@@ -57,7 +63,9 @@
   body.narrow #chatHead { display:flex; justify-content:space-between; align-items:center; padding:4px 10px; font-size:16px; }
   body.narrow #log { font-size:16px; line-height:1.5; height:min(20vh, 180px); max-height:none; padding:0 10px 8px; }
   body.narrow #log .t { font-size:13px; } body.narrow #log .system { font-size:15px; }
-  body.narrow #chat.closed #log { display:none; } /* the input stays usable when closed */
+  body.narrow #chat.focus #log { height:min(calc(var(--vv-h, 60vh) * .45), 360px); }
+  body.narrow #chat.closed #log, body.narrow #chat.closed #newLines { display:none; }
+  body.narrow #typing, body.narrow #talkHint { padding:0 10px; font-size:14px; } /* the input stays usable when closed */
   body.narrow #talkForm { margin:0; padding:6px 10px calc(8px + env(safe-area-inset-bottom, 0px)); border-top:1px solid #333; }
   body.narrow #talkText { max-width:none; font-size:16px; padding:8px; } body.narrow #talk { padding:7px 14px; }
 </style>
@@ -79,9 +87,12 @@
 <div id="status">connecting...</div>
 <div id="relays"></div>
 <div id="chat"><div id="chatHead"><span>💬 チャット (<span id="chatCount">0</span>)</span>
-  <button type="button" id="chatToggle" aria-expanded="true">開閉</button></div>
-<div id="log" role="log" aria-live="polite"></div>
-<form id="talkForm"><input id="talkText" class="cmd" maxlength="280" enterkeyhint="send" placeholder="のすたろうに話しかける（平文・公開・280字まで）" disabled>
+  <button type="button" id="chatToggle" aria-expanded="true">▼ ログを閉じる</button></div>
+<div id="logwrap"><div id="log" role="log" aria-live="polite"></div>
+<button type="button" id="newLines" hidden>↓ 新着</button></div>
+<div id="typing" hidden></div>
+<p id="talkHint">NIP-07 拡張（nos2x・Alby など）でログインすると話せる（今は閲覧のみ）</p>
+<form id="talkForm"><input id="talkText" class="cmd" maxlength="280" enterkeyhint="send" placeholder="NIP-07 拡張（nos2x・Alby など）でログインすると話せる" disabled>
   <button class="cmd" id="talk" disabled>話す</button></form></div>
 <script src="config.js"></script>
 <script src="sprites.js"></script>
@@ -90,6 +101,7 @@
 <script src="props.js"></script>
 <script src="town.js"></script>
 <script src="avatar.js"></script>
+<script src="chatui.js"></script>
 <script src="render.js"></script>
 <script src="viewport.js"></script>
 <script src="chatlog.js"></script>

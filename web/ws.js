@@ -44,7 +44,7 @@ function connect() {
       for (const a of Object.values(actors)) if (a.room === ev.room && !a.hidden && inHidden(r, a.pos)) a.hidden = true;
     } else if (ev.type === "say" && ev.actor) {
       // display only: a short-lived bubble over the speaker
-      speech[ev.actor.id] = { text: ev.message || "", until: performance.now() + SPEECH_MS };
+      speech[ev.actor.id] = { text: ev.message || "", until: performance.now() + CrabTalk.speechMs(ev.message) };
       log(`say: ${ev.actor.name}: ${ev.message || ""}`);
     } else if (ev.type === "knock") {
       log(`knock: ${ev.by} @ ${ev.room} ${ev.message || ""}`);

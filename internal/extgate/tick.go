@@ -58,6 +58,7 @@ type tickState struct {
 	mu          sync.Mutex
 	recent      []string // last few events, oldest first ("15:04 what")
 	lastTalk    time.Time
+	lastTalkBy  string          // who talked to the agent last (a say answers them)
 	active      map[string]bool // activity ids started and not ended
 	outstanding bool            // a tick was admitted and no turn has ended since
 	sentAt      time.Time

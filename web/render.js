@@ -99,21 +99,25 @@ function actorView(a, now) {
   return v;
 }
 
-// Speech bubbles from extgate say events (display only, fade after SPEECH_MS).
-const SPEECH_MS = 6000;
+// Speech bubbles from extgate say events (display only). The text wraps over
+// several lines and stays longer the longer it is (CrabTalk.speechMs).
+const SPEECH_MS = 6000; // the shortest a bubble stays
 const speech = {}; // actor id -> {text, until}
 function drawSpeech(a, x0, y0, now) {
   const s = speech[a.id];
   if (!s || now > s.until) { delete speech[a.id]; return; }
-  const text = s.text.length > 40 ? s.text.slice(0, 40) + "…" : s.text;
-  const px = fitFont(text, T * 8, 12, 9);
-  const w = Math.ceil(ctx.measureText(text).width) + 10, h = px + 8;
+  const k = typeof window !== "undefined" && window.LABEL_SCALE > 1 ? window.LABEL_SCALE : 1;
+  const px = Math.round(12 * k), maxW = Math.min(T * 9 * k, cv.width - 12);
+  ctx.font = `bold ${px}px sans-serif`;
+  const lines = CrabTalk.wrap(s.text, maxW, (t) => ctx.measureText(t).width, 6);
+  const lh = Math.round(px * 1.3);
+  const w = Math.ceil(Math.max(...lines.map(l => ctx.measureText(l).width))) + 12, h = lines.length * lh + 8;
   const x = Math.max(0, Math.min(cv.width - w, Math.round(x0 + T / 2 - w / 2)));
   const y = Math.max(0, y0 - h - 6);
   ctx.fillStyle = "#fff"; ctx.fillRect(x, y, w, h);
   ctx.fillRect(Math.round(x0 + T / 2) - 2, y + h, 4, 4);
-  ctx.fillStyle = "#111"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.fillText(text, x + w / 2, y + h / 2 + 0.5);
+  ctx.fillStyle = "#111"; ctx.textAlign = "left"; ctx.textBaseline = "top";
+  lines.forEach((l, i) => ctx.fillText(l, x + 6, y + 4 + i * lh + (lh - px) / 2));
   ctx.textBaseline = "alphabetic";
 }
 
