@@ -171,7 +171,7 @@ webhook には `interact` と `knock` イベントが同じ JSON 形式で送ら
 | `CRAB_NOSTR_KEY_FILE` | （無効） | crab-town 専用の署名鍵。無ければ 0600 で新規作成。0600 以外は起動拒否。リポジトリに置かない |
 | `CRAB_NOSTR_OWNER` | （なし = 全員来客） | オーナーの npub または hex（kojira: `npub1k0jrarx8um0lyw3nmysn50539ky4k8p7gfgzgrsvn8d7lccx3d0s38dczd`） |
 | `CRAB_NOSTR_OWNER_ACTOR` | `nostarou` | オーナーとして動かすアクター |
-| `CRAB_NOSTR_RELAYS` | `wss://yabu.me,wss://relay-jp.nostr.wirednet.jp` | 購読・送信するリレー（エフェメラルを転送する strfry） |
+| `CRAB_NOSTR_RELAYS` | `wss://yabu.me,wss://relay-jp.nostr.wirednet.jp,wss://n.kojira.io` | 購読・送信するリレー（どれもエフェメラルを転送する。yabu.me / relay-jp は strfry、n.kojira.io は nostrfy） |
 | `CRAB_NOSTR_WINDOW` | `2m` | `created_at` の許容幅 |
 
 ```sh
