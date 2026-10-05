@@ -143,6 +143,47 @@ curl -X POST localhost:8787/actor/knock -H "Authorization: Bearer $LABOMI_TOKEN"
 
 webhook には `interact` と `knock` イベントが同じ JSON 形式で送られる。
 
+### Nostr 経由の操作（GitHub Pages）
+
+静的ビューア `web/nostr.html`（Pages では `index.html`）は、crab-town に直接つながらず、Nostr リレー経由で町を見て操作する。
+公開ページ: https://kojira.github.io/crab-town/
+
+- **kind**（どちらもエフェメラル。リレーは転送するだけで保存しない。NIP 登録済みの値とは衝突しない番号）
+  - `23410` コマンド（クライアント → crab-town）。NIP-07 (`window.nostr`) で署名。
+  - `23411` 状態（crab-town → クライアント）。crab-town 専用の鍵で署名。
+- **コマンド** `kind:23410`, `tags: [["p", <town pubkey>], ["t","crab-town"]]`, `content` は JSON:
+  - `{"type":"snapshot"}` 公開ビューのスナップショットを要求（誰でも可）
+  - `{"type":"move","x":29,"y":15}` のすたろうを移動（**オーナーのみ**。`actor` 省略時はオーナーのアクター）
+  - `{"type":"knock","room":"nostarou-house","message":"..."}` ノック（来客も可）
+- **状態** `kind:23411`, `tags: [["t","crab-town"], ...]`, `content` は `/world` WebSocket と同じ JSON
+  （`snapshot` / `actor` / `occupancy` / `knock` / `say`）。各コマンドへの返事は
+  `{"type":"result","cmd":"move","role":"owner|guest","ok":bool,"error":"..."}` に `["e",<command id>]`, `["p",<sender>]` タグ付き。
+  30 秒ごとにもスナップショットを流す。
+- **受付の規則**（`internal/nostr`）: `p` タグが自分の町宛て → id とBIP-340 署名を検証 →
+  `created_at` が現在 ±`CRAB_NOSTR_WINDOW`（既定 2 分）かつプロセス起動後 → 同じ id は一度だけ（replay 拒否）。
+  どれかに外れたイベントは黙って捨てる。`CRAB_NOSTR_OWNER` の pubkey はオーナー、それ以外は来客で `knock` と `snapshot` だけ。
+- **暗号化はしない**。リレーに流れる状態は匿名（公開）ビューだけ：オーナー専用の部屋に入ったアクターは「見えない場所にいる」になる（演出）。
+
+設定（環境変数。`CRAB_NOSTR_KEY_FILE` が無ければ無効）:
+
+| 変数 | 既定 | 意味 |
+|---|---|---|
+| `CRAB_NOSTR_KEY_FILE` | （無効） | crab-town 専用の署名鍵。無ければ 0600 で新規作成。0600 以外は起動拒否。リポジトリに置かない |
+| `CRAB_NOSTR_OWNER` | （なし = 全員来客） | オーナーの npub または hex（kojira: `npub1k0jrarx8um0lyw3nmysn50539ky4k8p7gfgzgrsvn8d7lccx3d0s38dczd`） |
+| `CRAB_NOSTR_OWNER_ACTOR` | `nostarou` | オーナーとして動かすアクター |
+| `CRAB_NOSTR_RELAYS` | `wss://yabu.me,wss://relay-jp.nostr.wirednet.jp` | 購読・送信するリレー（エフェメラルを転送する strfry） |
+| `CRAB_NOSTR_WINDOW` | `2m` | `created_at` の許容幅 |
+
+```sh
+export CRAB_NOSTR_KEY_FILE=$HOME/.crab-town/nostr-town.key
+export CRAB_NOSTR_OWNER=npub1k0jrarx8um0lyw3nmysn50539ky4k8p7gfgzgrsvn8d7lccx3d0s38dczd
+./crab-town nostr-pubkey   # 町の pubkey だけを表示（web/config.js の town に書く）
+./crab-town
+```
+
+ページは `?town=<hex|npub>&relays=wss://a,wss://b` で別の町・リレーにも向けられる。
+NIP-07 が無いブラウザでは閲覧のみ（スナップショット要求は使い捨て鍵で署名）。
+
 ### テスト
 ```sh
 go test ./...
