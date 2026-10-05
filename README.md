@@ -143,6 +143,29 @@ curl -X POST localhost:8787/actor/knock -H "Authorization: Bearer $LABOMI_TOKEN"
 
 webhook には `interact` と `knock` イベントが同じ JSON 形式で送られる。
 
+### opencrab External gate V3 接続（任意）
+
+crab-town を opencrab core の External gate（UDS）につなぐ gateway として動かせる。設定が無ければ無効のまま従来どおり起動する。
+
+| 環境変数 | 設定ファイル（JSON）のキー | 内容 |
+|---|---|---|
+| `CRAB_EXTGATE_CONFIG` | — | 下記キーを持つ JSON ファイルの path（任意。環境変数が上書き） |
+| `CRAB_EXTGATE_SOCKET` | `socket` | core の `gate.listen_socket` の絶対 path |
+| `CRAB_EXTGATE_INSTANCE_ID` | `instance_id` | instance の UUID（小文字 canonical） |
+| `CRAB_EXTGATE_REVISION` | `revision` | instance の現行 revision（正整数） |
+| `CRAB_EXTGATE_CONFIG_DIGEST` | `config_digest` | instance config bytes の SHA-256 lowerhex |
+| `CRAB_EXTGATE_AUTHOR_ID` | `author_id` | said に載せる author_id |
+| `CRAB_EXTGATE_ADDRESS` | `address` | said を送る binding address（任意。既定は bind 済みの先頭） |
+| `CRAB_EXTGATE_ACTOR` | `actor` | activity / say で動かすアクター（任意。既定 `nostarou`） |
+
+一部だけ設定した場合や形式不正は起動エラーにする。
+
+- wire: LF 区切り JSON、1 frame は LF 込み 1,048,576 byte まで。全階層の duplicate member、invalid UTF-8、非 object は接続を閉じる。
+- hello: `protocol=3`、`operation_protocol=1`、`final_delivery="automatic"`、`operations=[]`。切断・拒否後は 200ms から 8s までの指数 backoff で再接続して hello をやり直す。
+- `bind` → `ok`。`say` → アクターの吹き出し（表示のみ・外部投稿なし）→ `ok`。text が空なら `err(external_rejected)`。
+- `activity started` → 書斎の PC へ移動、`ended`（または切断）→ 元の家具・元の位置へ戻る。
+- 家具の interact と来客のノック → `said`（origin は event ごとに一意）。activity で自分が PC に向かった分は送らない。
+
 ### Nostr 経由の操作（GitHub Pages）
 
 静的ビューア `web/nostr.html`（Pages では `index.html`）は、crab-town に直接つながらず、Nostr リレー経由で町を見て操作する。
@@ -193,4 +216,5 @@ go test ./...
 - トークンのローテーション・失効 API（現状は設定変更＋再起動）
 - 家具の配置自体は全員に見える
 - ハートビート連携（現状デモは interact API を叩いて発火）
+- extgate: `turn_failed` / `invoke` / `create_binding` / `command` などの拡張 message、添付付き said、said の未送信キュー永続化
 - ポスト（庭の郵便受けは飾り）、3軒目以降・家の追加 API、永続化
