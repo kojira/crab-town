@@ -156,15 +156,15 @@ crab-town を opencrab core の External gate（UDS）につなぐ gateway と�
 | `CRAB_EXTGATE_CONFIG_DIGEST` | `config_digest` | instance config bytes の SHA-256 lowerhex |
 | `CRAB_EXTGATE_AUTHOR_ID` | `author_id` | said に載せる author_id |
 | `CRAB_EXTGATE_ADDRESS` | `address` | said を送る binding address（任意。既定は bind 済みの先頭） |
-| `CRAB_EXTGATE_ACTOR` | `actor` | activity / say で動かすアクター（任意。既定 `nostarou`） |
+| `CRAB_EXTGATE_ACTOR` | `actor` | say で吹き出しを出し、talk の宛先となるアクター（任意。既定 `nostarou`） |
 
 一部だけ設定した場合や形式不正は起動エラーにする。
 
 - wire: LF 区切り JSON、1 frame は LF 込み 1,048,576 byte まで。全階層の duplicate member、invalid UTF-8、非 object は接続を閉じる。
 - hello: `protocol=3`、`operation_protocol=1`、`final_delivery="automatic"`、`operations=[]`。切断・拒否後は 200ms から 8s までの指数 backoff で再接続して hello をやり直す。
 - `bind` → `ok`。`say` → アクターの吹き出し（表示のみ・外部投稿なし）→ `ok`。text が空なら `err(external_rejected)`。
-- `activity started` → 書斎の PC へ移動、`ended`（または切断）→ 元の家具・元の位置へ戻る。
-- 家具の interact と来客のノック → `said`（origin は event ごとに一意）。activity で自分が PC に向かった分は送らない。
+- `activity`（ターン開始・終了の通知）では町は何もしない。どう動くかはエージェントが操作で選ぶ。
+- 家具の interact・ノック・Nostr の `talk`（そのアクター宛て）→ `said`（origin は event ごとに一意）。本文は「出来事（誰が・どこで・何を。talk なら本文）」「アクターの現在地」「今取れる操作の一覧（`internal/extgate` の操作表から生成。現状 `say` のみ）」だけ。特定の行動は指示しない。
 
 ### Nostr 経由の操作（GitHub Pages）
 
@@ -178,13 +178,14 @@ crab-town を opencrab core の External gate（UDS）につなぐ gateway と�
   - `{"type":"snapshot"}` 公開ビューのスナップショットを要求（誰でも可）
   - `{"type":"move","x":29,"y":15}` のすたろうを移動（**オーナーのみ**。`actor` 省略時はオーナーのアクター）
   - `{"type":"knock","room":"nostarou-house","message":"..."}` ノック（来客も可）
+  - `{"type":"talk","text":"..."}` のすたろうに話しかける（来客も可。平文・公開。280 文字まで、超えたら拒否。`to` 省略時は `CRAB_NOSTR_TALK_TO`、既定 `nostarou`）。extgate 経由で `said` として渡る
 - **状態** `kind:23411`, `tags: [["t","crab-town"], ...]`, `content` は `/world` WebSocket と同じ JSON
-  （`snapshot` / `actor` / `occupancy` / `knock` / `say`）。各コマンドへの返事は
+  （`snapshot` / `actor` / `occupancy` / `knock` / `talk` / `say`。`say` は吹き出しで、非公開ゾーンからでも文面は公開・位置は伏せる）。各コマンドへの返事は
   `{"type":"result","cmd":"move","role":"owner|guest","ok":bool,"error":"..."}` に `["e",<command id>]`, `["p",<sender>]` タグ付き。
   30 秒ごとにもスナップショットを流す。
 - **受付の規則**（`internal/nostr`）: `p` タグが自分の町宛て → id とBIP-340 署名を検証 →
   `created_at` が現在 ±`CRAB_NOSTR_WINDOW`（既定 2 分）かつプロセス起動後 → 同じ id は一度だけ（replay 拒否）。
-  どれかに外れたイベントは黙って捨てる。`CRAB_NOSTR_OWNER` の pubkey はオーナー、それ以外は来客で `knock` と `snapshot` だけ。
+  どれかに外れたイベントは黙って捨てる。`CRAB_NOSTR_OWNER` の pubkey はオーナー、それ以外は来客で `knock` / `talk` / `snapshot` だけ。
 - **暗号化はしない**。リレーに流れる状態は匿名（公開）ビューだけ：オーナー専用の部屋に入ったアクターは「見えない場所にいる」になる（演出）。
 
 設定（環境変数。`CRAB_NOSTR_KEY_FILE` が無ければ無効）:
@@ -194,6 +195,7 @@ crab-town を opencrab core の External gate（UDS）につなぐ gateway と�
 | `CRAB_NOSTR_KEY_FILE` | （無効） | crab-town 専用の署名鍵。無ければ 0600 で新規作成。0600 以外は起動拒否。リポジトリに置かない |
 | `CRAB_NOSTR_OWNER` | （なし = 全員来客） | オーナーの npub または hex（kojira: `npub1k0jrarx8um0lyw3nmysn50539ky4k8p7gfgzgrsvn8d7lccx3d0s38dczd`） |
 | `CRAB_NOSTR_OWNER_ACTOR` | `nostarou` | オーナーとして動かすアクター |
+| `CRAB_NOSTR_TALK_TO` | `nostarou` | `talk` で `to` 省略時の宛先アクター |
 | `CRAB_NOSTR_RELAYS` | `wss://r.kojira.io,wss://n.kojira.io,wss://x.kojira.io` | 購読・送信するリレー（どれもエフェメラル kind:23410/23411 を転送する） |
 | `CRAB_NOSTR_WINDOW` | `2m` | `created_at` の許容幅 |
 
