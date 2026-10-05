@@ -173,3 +173,51 @@ func TestSubscribeReceivesEvents(t *testing.T) {
 		t.Fatalf("unexpected event %+v", ev)
 	}
 }
+
+// Using a bed puts the actor on the bed itself (lying), like the sofa seat.
+func TestBedLiesOnBed(t *testing.T) {
+	w := NewDefault()
+	if err := w.Interact(owner, "nostarou", "bed"); err != nil {
+		t.Fatal(err)
+	}
+	walk(w, 300)
+	a, _ := w.Actor("nostarou")
+	bed := w.rooms[TownID].furniture("bed")
+	if a.Using != "bed" || !bed.Occupies(a.Pos) {
+		t.Fatalf("not lying on the bed: %+v", a)
+	}
+}
+
+func TestChairSitsOnChair(t *testing.T) {
+	w := NewDefault()
+	if err := w.Interact(owner, "nostarou", "chair1"); err != nil {
+		t.Fatal(err)
+	}
+	walk(w, 300)
+	a, _ := w.Actor("nostarou")
+	c := w.rooms[TownID].furniture("chair1")
+	if a.Using != "chair1" || !c.Occupies(a.Pos) {
+		t.Fatalf("not sitting on the chair: %+v", a)
+	}
+}
+
+// Every chair in both houses can be reached and sat on, and left again.
+func TestEveryChairReachable(t *testing.T) {
+	for _, id := range []string{"chair1", "chair2", "chair3", "chair4", "labomi-chair1", "labomi-chair2"} {
+		w := NewDefault()
+		if err := w.SetInvited("labomi", []string{"nostarou"}); err != nil {
+			t.Fatal(err)
+		}
+		if err := w.Interact("nostarou", "nostarou", id); err != nil {
+			t.Fatalf("%s: %v", id, err)
+		}
+		walk(w, 400)
+		a, _ := w.Actor("nostarou")
+		if a.Using != id || !w.rooms[TownID].furniture(id).Occupies(a.Pos) {
+			t.Errorf("%s: not seated: %+v", id, a)
+		}
+		if err := w.Move("nostarou", "nostarou", Pos{23, 4}); err != nil {
+			t.Errorf("%s: cannot stand up and leave: %v", id, err)
+		}
+	}
+}
