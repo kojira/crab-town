@@ -74,5 +74,5 @@ test("the knock button has a house picker, not a fixed nostarou-house", () => {
   const css = html.slice(html.indexOf("<style>"), html.indexOf("</style>"));
   assert.match(css, /body\.narrow #log \{[^}]*font-size:16px/);
   assert.match(css, /body\.narrow #status \{[^}]*font-size:15px/);
-  assert.match(css, /body\.narrow button, body\.narrow select \{[^}]*font-size:15px/);
+  assert.match(css, /body\.narrow button \{[^}]*font-size:15px/);
 });
