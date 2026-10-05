@@ -1,8 +1,9 @@
 package world
 
-// Default house: a 4LDK + water area on a 32x20 grid.
+// のすたろうの家: a 4LDK + water area on a 32x20 grid. The coordinates below
+// are house-local; town.go places the house at x+NostarouX.
 //
-//	y=0        outer wall (window in the living room, front door on the left)
+//	y=0        outer wall (window in the living room, front door on the left, to the garden)
 //	y=1..4     entrance | kitchen  dining | living   (LDK is open plan)
 //	y=5        wall under kitchen / dining
 //	y=6..8     entrance | toilet | washroom | bath | living
@@ -142,17 +143,4 @@ func defaultFurniture() []*Furniture {
 		deco("guestnight", KindNightstand, "ナイトテーブル", 27, 14, 1, 1),
 		deco("guestcloset", KindWardrobe, "クローゼット", 27, 18, 2, 1),
 	}
-}
-
-// NewDefault builds the default world: nostarou's 4LDK house.
-func NewDefault() *World {
-	w := New()
-	w.AddRoom(&Room{
-		ID: "nostarou-room", Owner: "nostarou", Visibility: VisPublic,
-		Width: HouseWidth, Height: HouseHeight,
-		Zones: defaultZones(), Walls: defaultWalls(), Doors: defaultDoors(),
-		Furniture: defaultFurniture(),
-	})
-	w.AddActor(&Actor{ID: "nostarou", Name: "のすたろう", RoomID: "nostarou-room", Pos: Pos{22, 3}, State: StateIdle})
-	return w
 }

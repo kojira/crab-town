@@ -30,7 +30,7 @@ opencrab から独立した「2D空間 gateway」。エージェントが部屋�
 2. Canvas 描画
 3. ハートビートでのすたろうが窓まで歩く
 
-次段: らぼみちゃんの家、街（家の外へ出る）
+次段: 街（家の外へ出る）。らぼみちゃんの家は実装済み（下の「MVP 実装」）
 
 ---
 
@@ -39,10 +39,20 @@ opencrab から独立した「2D空間 gateway」。エージェントが部屋�
 ### 構成
 - `internal/world` : World の状態（メモリ保持）、移動（BFS・1tick 1タイル）、境界・壁・家具ブロック、interact、権限、ゾーン可視性フィルタ（`zone.go`）、使用中プライバシー（`occupancy.go`）、間取り（`layout.go`）
 - `internal/server` : HTTP API / WebSocket / webhook 転送 / トークン認証（`auth.go`）
-- `web/` : Canvas ビューア（ビルドツールなし、バイナリに embed）。`furniture.js` 家具ドット絵 / `floor.js` 床・壁・ドア / `props.js` 小物・水回り・使用中ランプ / `render.js` 描画 / `ws.js` 受信
+- `web/` : Canvas ビューア（ビルドツールなし、バイナリに embed）。`furniture.js` 家具ドット絵 / `floor.js` 床・壁・ドア / `props.js` 小物・水回り・使用中ランプ / `town.js` らぼみの家・庭のドット絵、らぼみのスプライト、家ごとの暗幕 / `render.js` 描画 / `ws.js` 受信
 - `cmd/crab-town` : 起動コマンド
 
-部屋: `nostarou-room`（32x20 の 4LDK＋水回り、owner = `nostarou`）。壁（通行不可）とドア（通行可）で仕切られ、BFS は壁を回り込んでドアを通る。
+町: 部屋 `town`（58x20）1枚に家が2軒と庭。壁（通行不可）とドア（通行可）で仕切られ、BFS は壁を回り込んでドアを通る。
+
+| x | 区画 | house id / owner |
+|---|---|---|
+| 0..21 | らぼみの家（22x20）: LDK・玄関・廊下・らぼみの部屋（owner）・おとまり部屋（invited）・トイレ / 洗面所 / 浴室（owner） | `labomi-house` / `labomi` |
+| 22..25 | 庭（public）。y=4 の飛び石が両家の玄関（(21,4) と (26,4)）をつなぐ | — |
+| 26..57 | のすたろうの家（下表の 4LDK を x+26 にずらしたもの） | `nostarou-house` / `nostarou` |
+
+各ゾーンは所属する家（`zone.house`）を持ち、`invited` / `owner` の判定はその家の owner・招待者で行う（自分の家の owner でも隣の家の owner 専用ゾーンは見えない）。らぼみの家のゾーン・家具 id は `labomi-` で始まる。
+
+のすたろうの家（座標は家内ローカル、町では x+26）:
 
 | ゾーン | 床 | 可視性 | 主な家具 |
 |---|---|---|---|
@@ -70,7 +80,7 @@ opencrab から独立した「2D空間 gateway」。エージェントが部屋�
 家具は `size` 分のタイルを占有し通行不可。ただし `walkable: true` の平たい小物（ラグ・マット・デスクチェア）は上を歩ける。`function` が空の家具は飾り（interact すると 400）。interact するとアクターは家具の前まで歩き、到着した時点で `interact` イベントが発生する。
 
 #### ゾーンの可視性
-`public` = 誰でも / `invited` = 持ち主＋招待者 / `owner` = 持ち主のみ（不明な値は owner 扱い）。
+`public` = 誰でも / `invited` = その家の持ち主＋招待者 / `owner` = その家の持ち主のみ（不明な値は owner 扱い。家に属さない非 public ゾーンは誰にも見えない）。
 閲覧者はトークンから決まる（下の「認証」）。ビューアはページ URL の `?token=` をそのまま `/world` に渡す。
 見えないゾーン（とそのドア）にいるアクターは `{"hidden":true,"state":"hidden"}` に伏せられ位置・使用家具が消える。そこでの `interact` イベントは届かない。見えるゾーンを歩いていても目的地が見えないゾーンなら `target` は伏せる。snapshot の `hidden_zones` に見えないゾーン id が入り、ビューアは曇りガラス＋錠前で覆う。
 
@@ -89,18 +99,18 @@ go run ./cmd/crab-town
 - `CRAB_TICK` : 歩行の 1 ステップ間隔（既定 `250ms`）
 - `CRAB_TOKENS` : `id:token,id:token` 形式の actor トークン
 - `CRAB_TOKENS_FILE` : `{"id":"token"}` 形式の JSON ファイルのパス（`tokens.example.json` を参考に。`tokens.json` は `.gitignore` 済み。**トークンをリポジトリに入れない**）
-- `CRAB_INVITED` : `nostarou-room` の招待者 id（カンマ区切り、例 `labomi`）。未設定なら招待者はゼロで、トークンを持っていても `invited` ゾーン（趣味部屋・ゲストルーム）は見えない・操作できない。招待者として閲覧するには **`CRAB_INVITED` に id を入れ、かつ `CRAB_TOKENS` / `CRAB_TOKENS_FILE` にその id のトークンを登録**する（トークンのない招待者は起動時に警告）
+- `CRAB_INVITED` : 家ごとの招待者。`house=id,id;house2=id` 形式（house は house id か owner id）。例 `nostarou-house=labomi;labomi-house=nostarou`。旧形式（`labomi` のように id の列挙だけ）は `nostarou-house` に適用される。存在しない家・同じ家の重複は起動エラー。未設定なら招待者はゼロで、トークンを持っていても他人の家の `invited` ゾーン（趣味部屋・ゲストルーム・おとまり部屋）は見えない・入れない。招待者として閲覧するには **`CRAB_INVITED` に id を入れ、かつ `CRAB_TOKENS` / `CRAB_TOKENS_FILE` にその id のトークンを登録**する（トークンのない招待者は起動時に警告）
 
 招待者視点で見る例（トークンは自分で生成した値を使う）:
 ```sh
-CRAB_TOKENS_FILE=tokens.json CRAB_INVITED=labomi go run ./cmd/crab-town
+CRAB_TOKENS_FILE=tokens.json CRAB_INVITED="nostarou-house=labomi;labomi-house=nostarou" go run ./cmd/crab-town
 # ブラウザで http://127.0.0.1:8787/?token=<labomi のトークン>
-# → 趣味部屋・ゲストルームは見える／寝室・書斎・洗面所・浴室と使用中のトイレは伏せられる
+# → のすたろうの家の趣味部屋・ゲストルームは見える／寝室・書斎・洗面所・浴室と使用中のトイレは伏せられる
 ```
 
 ### 認証
 - トークンは actor ごと。`Authorization: Bearer <token>`（WS は `?token=<token>` も可）で送る
-- POST 系（move / interact / knock）はトークン必須。なし・不正は **401**。トークンの持ち主がそのまま呼び出し元 id になる（move / interact は部屋の持ち主か招待者のみ、それ以外は 403）
+- POST 系（move / interact / knock）はトークン必須。なし・不正は **401**。トークンの持ち主がそのまま呼び出し元 id になる（move / interact: 動かせるのは自分自身か、自分が持ち主・招待者である家の中にいるアクター。行き先・使う家具が家の中ならその家の持ち主か招待者であること。庭は誰でも歩ける。それ以外は 403）
 - `WS /world`: トークンなし＝public 閲覧者、正しいトークン＝その actor として閲覧、不正トークン＝401
 - 旧 `X-Crab-Id` ヘッダと `?viewer=` は無視される
 
@@ -114,11 +124,11 @@ curl -X POST localhost:8787/actor/interact -H "Authorization: Bearer $NOSTAROU_T
 
 # 指定タイルへ移動
 curl -X POST localhost:8787/actor/move -H "Authorization: Bearer $NOSTAROU_TOKEN" \
-  -d '{"actor":"nostarou","x":3,"y":4}'
+  -d '{"actor":"nostarou","x":29,"y":4}'
 
 # ノック
 curl -X POST localhost:8787/actor/knock -H "Authorization: Bearer $LABOMI_TOKEN" \
-  -d '{"room":"nostarou-room","message":"あそぼ"}'
+  -d '{"room":"nostarou-house","message":"あそぼ"}'
 ```
 
 レスポンス: 成功 `{"ok":true}` / 失敗 `{"ok":false,"error":"..."}`（400 範囲外・通行不可・不正JSON、401 トークンなし・不正、403 権限なし、404 存在しない actor / room / furniture）
@@ -128,7 +138,7 @@ curl -X POST localhost:8787/actor/knock -H "Authorization: Bearer $LABOMI_TOKEN"
 2. 以降は差分イベント
    - `{"type":"actor","actor":{"id","pos","state","using","target"},...}` 位置・状態の変化
    - `{"type":"interact","actor":{...},"furniture":{...},"by":"..."}` 家具の使用開始
-   - `{"type":"knock","room":"...","by":"...","message":"..."}`
+   - `{"type":"knock","room":"town","house":"...","by":"...","message":"..."}`（`room` に house id を渡すとその家へのノック）
    - `{"type":"occupancy","room":"...","in_use":["bath"],"hidden_zones":[...]}` トイレ・浴室の使用中フラグが変わった
 
 webhook には `interact` と `knock` イベントが同じ JSON 形式で送られる。
@@ -156,6 +166,47 @@ crab-town を opencrab core の External gate（UDS）につなぐ gateway と�
 - `activity started` → 書斎の PC へ移動、`ended`（または切断）→ 元の家具・元の位置へ戻る。
 - 家具の interact と来客のノック → `said`（origin は event ごとに一意）。activity で自分が PC に向かった分は送らない。
 
+### Nostr 経由の操作（GitHub Pages）
+
+静的ビューア `web/nostr.html`（Pages では `index.html`）は、crab-town に直接つながらず、Nostr リレー経由で町を見て操作する。
+公開ページ: https://kojira.github.io/crab-town/
+
+- **kind**（どちらもエフェメラル。リレーは転送するだけで保存しない。NIP 登録済みの値とは衝突しない番号）
+  - `23410` コマンド（クライアント → crab-town）。NIP-07 (`window.nostr`) で署名。
+  - `23411` 状態（crab-town → クライアント）。crab-town 専用の鍵で署名。
+- **コマンド** `kind:23410`, `tags: [["p", <town pubkey>], ["t","crab-town"]]`, `content` は JSON:
+  - `{"type":"snapshot"}` 公開ビューのスナップショットを要求（誰でも可）
+  - `{"type":"move","x":29,"y":15}` のすたろうを移動（**オーナーのみ**。`actor` 省略時はオーナーのアクター）
+  - `{"type":"knock","room":"nostarou-house","message":"..."}` ノック（来客も可）
+- **状態** `kind:23411`, `tags: [["t","crab-town"], ...]`, `content` は `/world` WebSocket と同じ JSON
+  （`snapshot` / `actor` / `occupancy` / `knock` / `say`）。各コマンドへの返事は
+  `{"type":"result","cmd":"move","role":"owner|guest","ok":bool,"error":"..."}` に `["e",<command id>]`, `["p",<sender>]` タグ付き。
+  30 秒ごとにもスナップショットを流す。
+- **受付の規則**（`internal/nostr`）: `p` タグが自分の町宛て → id とBIP-340 署名を検証 →
+  `created_at` が現在 ±`CRAB_NOSTR_WINDOW`（既定 2 分）かつプロセス起動後 → 同じ id は一度だけ（replay 拒否）。
+  どれかに外れたイベントは黙って捨てる。`CRAB_NOSTR_OWNER` の pubkey はオーナー、それ以外は来客で `knock` と `snapshot` だけ。
+- **暗号化はしない**。リレーに流れる状態は匿名（公開）ビューだけ：オーナー専用の部屋に入ったアクターは「見えない場所にいる」になる（演出）。
+
+設定（環境変数。`CRAB_NOSTR_KEY_FILE` が無ければ無効）:
+
+| 変数 | 既定 | 意味 |
+|---|---|---|
+| `CRAB_NOSTR_KEY_FILE` | （無効） | crab-town 専用の署名鍵。無ければ 0600 で新規作成。0600 以外は起動拒否。リポジトリに置かない |
+| `CRAB_NOSTR_OWNER` | （なし = 全員来客） | オーナーの npub または hex（kojira: `npub1k0jrarx8um0lyw3nmysn50539ky4k8p7gfgzgrsvn8d7lccx3d0s38dczd`） |
+| `CRAB_NOSTR_OWNER_ACTOR` | `nostarou` | オーナーとして動かすアクター |
+| `CRAB_NOSTR_RELAYS` | `wss://r.kojira.io,wss://n.kojira.io,wss://x.kojira.io` | 購読・送信するリレー（どれもエフェメラル kind:23410/23411 を転送する） |
+| `CRAB_NOSTR_WINDOW` | `2m` | `created_at` の許容幅 |
+
+```sh
+export CRAB_NOSTR_KEY_FILE=$HOME/.crab-town/nostr-town.key
+export CRAB_NOSTR_OWNER=npub1k0jrarx8um0lyw3nmysn50539ky4k8p7gfgzgrsvn8d7lccx3d0s38dczd
+./crab-town nostr-pubkey   # 町の pubkey だけを表示（web/config.js の town に書く）
+./crab-town
+```
+
+ページは `?town=<hex|npub>&relays=wss://a,wss://b` で別の町・リレーにも向けられる。
+NIP-07 が無いブラウザでは閲覧のみ（スナップショット要求は使い捨て鍵で署名）。
+
 ### テスト
 ```sh
 go test ./...
@@ -165,5 +216,5 @@ go test ./...
 - トークンのローテーション・失効 API（現状は設定変更＋再起動）
 - 家具の配置自体は全員に見える
 - ハートビート連携（現状デモは interact API を叩いて発火）
-- ポスト、複数の家、街、永続化
 - extgate: `turn_failed` / `invoke` / `create_binding` / `command` などの拡張 message、添付付き said、said の未送信キュー永続化
+- ポスト（庭の郵便受けは飾り）、3軒目以降・家の追加 API、永続化

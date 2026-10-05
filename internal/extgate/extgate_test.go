@@ -24,7 +24,7 @@ func TestFlowHelloBindSaidSayActivity(t *testing.T) {
 	waitBound(t, b)
 
 	// knock in the world → said to core; core answers ok with seq
-	if err := w.Knock("kojira", "nostarou-room", "あそぼ"); err != nil {
+	if err := w.Knock("kojira", "nostarou-house", "あそぼ"); err != nil {
 		t.Fatal(err)
 	}
 	said := cc.recv()

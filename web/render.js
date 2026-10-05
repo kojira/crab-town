@@ -126,8 +126,9 @@ function drawActor(a, now) {
   ctx.fillStyle = "rgba(0,0,0,0.35)"; // shadow
   ctx.fillRect(x0 + 4 * P, y0 + 15 * P, 8 * P, P);
   const bob = moving && v.frame ? -P : 0;
-  drawSprite(NOSTAROU_BODY, NOSTAROU_PAL, x0, y0 + bob, v.flip);
-  drawSprite(NOSTAROU_LEGS[moving ? v.frame : 0], NOSTAROU_PAL, x0, y0 + 13 * P, v.flip);
+  const sp = spriteFor(a);
+  drawSprite(sp.body, sp.pal, x0, y0 + bob, v.flip);
+  drawSprite(sp.legs[moving ? v.frame : 0], sp.pal, x0, y0 + 13 * P, v.flip);
   drawStateIcon(a.state, x0, y0);
   drawNameTag(a.name, x0 + T / 2, y0, y0 + T);
   drawSpeech(a, x0, y0, now);

@@ -75,6 +75,7 @@ var (
 	ErrForbidden   = errors.New("forbidden")
 	ErrBadRequest  = errors.New("bad request")
 	ErrNotUsable   = errors.New("furniture is decoration only")
+	ErrNoHouse     = errors.New("house not found")
 )
 
 type Pos struct {
@@ -106,13 +107,13 @@ func (f *Furniture) Occupies(p Pos) bool {
 	return Rect{f.Pos.X, f.Pos.Y, w, h}.Contains(p)
 }
 
+// Room is a walkable map (the town). Ownership lives on its Houses.
 type Room struct {
 	ID         string       `json:"id"`
-	Owner      string       `json:"owner"`
 	Width      int          `json:"width"`
 	Height     int          `json:"height"`
 	Visibility string       `json:"visibility"` // public / owner / invited
-	Invited    []string     `json:"invited"`
+	Houses     []*House     `json:"houses"`
 	Zones      []*Zone      `json:"zones"`
 	Walls      []Rect       `json:"walls"` // impassable
 	Doors      []Pos        `json:"doors"` // passable gaps in walls
@@ -146,6 +147,7 @@ type Event struct {
 	Furniture *Furniture `json:"furniture,omitempty"`
 	By        string     `json:"by,omitempty"`
 	Message   string     `json:"message,omitempty"`
+	House     string     `json:"house,omitempty"` // knock: the house knocked on
 	// occupancy events only: occupied private zones, and (per viewer) hidden zones
 	InUse       []string `json:"in_use,omitempty"`
 	HiddenZones []string `json:"hidden_zones,omitempty"`
@@ -196,19 +198,6 @@ func (w *World) AddRoom(r *Room) {
 	w.rooms[r.ID] = r
 }
 
-// SetInvited replaces the invited ids of a room (they may operate it and see
-// its invited zones).
-func (w *World) SetInvited(roomID string, ids []string) error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	r := w.rooms[roomID]
-	if r == nil {
-		return ErrNoRoom
-	}
-	r.Invited = append([]string{}, ids...)
-	return nil
-}
-
 func (w *World) AddActor(a *Actor) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -241,7 +230,12 @@ func (w *World) Snapshot() Snapshot {
 	s := Snapshot{Type: "snapshot", Rooms: []*Room{}, Actors: []*Actor{}}
 	for _, r := range w.rooms {
 		rc := *r
-		rc.Invited = append([]string{}, r.Invited...)
+		rc.Houses = nil
+		for _, h := range r.Houses {
+			hc := *h
+			hc.Invited = append([]string{}, h.Invited...)
+			rc.Houses = append(rc.Houses, &hc)
+		}
 		rc.Zones = nil
 		for _, z := range r.Zones {
 			zc := *z
@@ -283,22 +277,6 @@ func copyActor(a *Actor) *Actor {
 	}
 	c.path = nil
 	return &c
-}
-
-// CanOperate: only the owner or invited ids may operate furniture / move actors in a room.
-func (r *Room) CanOperate(by string) bool {
-	if by == "" {
-		return false
-	}
-	if by == r.Owner {
-		return true
-	}
-	for _, id := range r.Invited {
-		if id == by {
-			return true
-		}
-	}
-	return false
 }
 
 func (r *Room) inBounds(p Pos) bool {
@@ -379,7 +357,7 @@ func (w *World) Move(by, actorID string, to Pos) error {
 		w.mu.Unlock()
 		return err
 	}
-	if !r.CanOperate(by) {
+	if !r.canCommand(by, a) || (r.inBounds(to) && !r.canEnter(by, to)) {
 		w.mu.Unlock()
 		return ErrForbidden
 	}
@@ -420,7 +398,7 @@ func (w *World) Interact(by, actorID, furnitureID string) error {
 		w.mu.Unlock()
 		return err
 	}
-	if !r.CanOperate(by) {
+	if !r.canCommand(by, a) {
 		w.mu.Unlock()
 		return ErrForbidden
 	}
@@ -432,6 +410,10 @@ func (w *World) Interact(by, actorID, furnitureID string) error {
 	if f.Function == "" {
 		w.mu.Unlock()
 		return ErrNotUsable
+	}
+	if !r.canEnter(by, f.Access) {
+		w.mu.Unlock()
+		return ErrForbidden
 	}
 	path, ok := r.findPath(a.Pos, f.Access)
 	if !ok {
@@ -458,18 +440,27 @@ func (w *World) Interact(by, actorID, furnitureID string) error {
 	return nil
 }
 
-// Knock: anyone with an id may knock on a room. Emits a knock event for the owner.
-func (w *World) Knock(by, roomID, message string) error {
+// Knock: anyone with an id may knock on a house (by house id) or a room.
+// Emits a knock event for the owner.
+func (w *World) Knock(by, target, message string) error {
 	if by == "" {
 		return ErrBadRequest
 	}
 	w.mu.Lock()
-	r, ok := w.rooms[roomID]
-	if !ok {
+	ev := Event{Type: "knock", By: by, Message: message}
+	if r, ok := w.rooms[target]; ok {
+		ev.Room = r.ID
+	} else {
+		for _, r := range w.rooms {
+			if h := r.House(target); h != nil {
+				ev.Room, ev.House = r.ID, h.ID
+			}
+		}
+	}
+	if ev.Room == "" {
 		w.mu.Unlock()
 		return ErrNoRoom
 	}
-	ev := Event{Type: "knock", Room: r.ID, By: by, Message: message}
 	w.mu.Unlock()
 	w.emit(ev)
 	return nil

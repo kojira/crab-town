@@ -92,17 +92,10 @@ function drawWalls(room) {
   }
 }
 
-// Zones the viewer may not see are covered by a frosted glass panel.
+// Zones the viewer may not see are closed with the house's curtain (town.js).
 function drawHiddenZones(room) {
   for (const id of room.hidden_zones || []) {
     const z = (room.zones || []).find(z => z.id === id);
-    if (!z) continue;
-    const x = z.rect.x * T, y = z.rect.y * T, w = z.rect.w * T, h = z.rect.h * T;
-    ctx.fillStyle = "rgba(20,22,30,0.72)"; ctx.fillRect(x, y, w, h);
-    ctx.fillStyle = "rgba(255,255,255,0.06)";
-    for (let i = -h; i < w; i += 12) { ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
-      ctx.fillRect(x + i, y, 4, h); ctx.restore(); }
-    const lx = x + w / 2, ly = y + h / 2, p = dotPen(lx - 8 * P, ly - 8 * P);
-    p(4, 6, 8, 7, "#c8b060"); p(5, 2, 1, 4, "#c8b060"); p(10, 2, 1, 4, "#c8b060"); p(5, 1, 6, 1, "#c8b060"); p(7, 8, 2, 3, "#333"); // padlock
+    if (z) drawCurtain(z);
   }
 }
