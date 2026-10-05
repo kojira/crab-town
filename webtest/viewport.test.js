@@ -80,8 +80,6 @@ test("chat lines say who spoke: resident / guest / owner / self", () => {
   assert.equal(Chat.entry({ type: "talk", by: "nostr:bbbbbbbbbbbbbbbb", role: "guest", message: "hi" }, ctx).who, "来客 bbbbbbbb");
   assert.equal(Chat.entry({ type: "talk", by: "nostr:aaaaaaaaaaaaaaaa", role: "guest", message: "me" }, ctx).kind, "self");
   assert.equal(Chat.entry({ type: "talk", by: "nostr:cccccccccccccccc", role: "owner", message: "x" }, ctx).kind, "owner");
-  const own = Chat.entry({ type: "say", actor: { id: "nostarou", name: "のすたろう" }, message: "x" }, { selfActorId: "nostarou" });
-  assert.equal(own.kind, "self");
   assert.equal(Chat.entry({ type: "knock", by: "labomi", house: "nostarou-house" }, ctx).kind, "system");
   assert.equal(Chat.entry({ type: "result" }, ctx), null);
 });

@@ -19,7 +19,11 @@ const seen = new Set(); // state event ids already applied (several relays deliv
 const sockets = [];
 let me = null; // NIP-07 pubkey, once known
 let myActor = null; // world actor this viewer drives (set once the town answers "owner")
-const chatCtx = () => ({ selfGuestId: me ? "nostr:" + me.slice(0, 16) : null, selfActorId: myActor });
+// "you" in the chat is only the logged-in pubkey's own talk. The actor the
+// owner drives (nostarou) speaks for the agent, so its say stays its own name.
+const LISTENING = cfg.listening || []; // actors someone receives knocks for (extgate)
+const knockList = () => CrabViewport.knockTargets(Object.values(rooms)[0], actors, LISTENING);
+const chatCtx = () => ({ selfGuestId: me ? "nostr:" + me.slice(0, 16) : null, houses: knockList() });
 
 const $ = (id) => document.getElementById(id);
 const relaysEl = $("relays");
@@ -55,11 +59,23 @@ function apply(ev) {
     CrabChat.add(CrabChat.entry(ev, chatCtx()));
     if (typeof speech !== "undefined") speech[ev.actor.id] = { text: ev.message || "", until: performance.now() + SPEECH_MS };
   } else if (ev.type === "result") {
-    if (!me || ev.p === me) say(`${ev.cmd}: ${ev.ok ? "ok" : "NG " + ev.error} (${ev.role})`);
+    if (!me || ev.p === me) say(CrabChat.resultText(ev));
     if (me && ev.p === me && ev.role === "owner" && !myActor) { myActor = cfg.ownerActor || "nostarou"; CrabView.setSelf(myActor); }
   }
   updateStatus();
+  updateKnockTargets();
   CrabView.onWorld();
+}
+
+// The knock menu lists every house; a house nobody listens at says so.
+let knockKey = "";
+function updateKnockTargets() {
+  const ts = knockList(), key = ts.map(t => t.id + t.label + t.reachable).join("|");
+  if (!ts.length || key === knockKey) return;
+  knockKey = key;
+  const sel = $("knockTo"), cur = sel.value;
+  sel.replaceChildren(...ts.map(t => new Option(t.label + (t.reachable ? "" : "（不在・記録のみ）"), t.id)));
+  if (ts.some(t => t.id === cur)) sel.value = cur;
 }
 
 function onState(ev) {
@@ -143,7 +159,11 @@ cv.addEventListener("click", (e) => {
 $("login").onclick = login;
 $("toRoom").onclick = () => send({ type: "move", ...ROOM_SPOT });
 $("toGarden").onclick = () => send({ type: "move", x: 24, y: 4 });
-$("knock").onclick = () => send({ type: "knock", room: "nostarou-house", message: "こんにちは" });
+$("knock").onclick = () => {
+  const t = knockList().find(x => x.id === $("knockTo").value);
+  send({ type: "knock", room: $("knockTo").value || "nostarou-house", message: "こんにちは" });
+  if (t && !t.reachable) say(`${t.label}には今だれも応答できない。ノックは町の出来事として記録されるだけ`);
+};
 $("resync").onclick = () => send({ type: "snapshot" });
 // talk: plain text, public, up to 280 characters (the town refuses longer)
 $("talkForm").onsubmit = (e) => {

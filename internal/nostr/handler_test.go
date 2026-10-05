@@ -257,3 +257,34 @@ func TestGuestAndOwnerMayTalk(t *testing.T) {
 		t.Fatalf("empty talk: %+v", res)
 	}
 }
+
+// Knocks are not tied to nostarou's house: a guest and the owner may knock on
+// labomi's too (recorded as a town event even when nobody listens there).
+func TestKnockOnLabomiHouse(t *testing.T) {
+	f := newFixture(t)
+	evs, cancel := f.h.World.Subscribe()
+	defer cancel()
+	for i, key := range []*btcec.PrivateKey{f.guest, f.owner} {
+		res := f.h.Handle(f.cmd(t, key, `{"type":"knock","room":"labomi-house","message":"やあ"}`, time.Duration(i)*time.Second))
+		if res.Err != nil {
+			t.Fatalf("knock %d: %+v", i, res)
+		}
+		if ev := <-evs; ev.Type != "knock" || ev.House != world.LabomiHouse {
+			t.Fatalf("knock event %d: %+v", i, ev)
+		}
+	}
+}
+
+// Without CRAB_INVITED the owner's actor may walk the garden but not into
+// labomi's house (per-house permission; the viewer explains the NG).
+func TestOwnerCannotEnterLabomiHouseUninvited(t *testing.T) {
+	f := newFixture(t)
+	res := f.h.Handle(f.cmd(t, f.owner, `{"type":"move","x":11,"y":4}`, 0))
+	if !errors.Is(res.Err, world.ErrForbidden) {
+		t.Fatalf("uninvited move into labomi's LDK: %+v", res)
+	}
+	f.h.World.House(world.LabomiHouse).Invited = []string{"nostarou"}
+	if res := f.h.Handle(f.cmd(t, f.owner, `{"type":"move","x":11,"y":4}`, time.Second)); res.Err != nil {
+		t.Fatalf("invited move: %+v", res)
+	}
+}
