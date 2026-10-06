@@ -73,6 +73,29 @@ export function keyboardLift(innerHeight: number, vv: VV | null | undefined): nu
 export function chatPad(lift: number, room: number, lineH: number): number {
   return Math.max(0, Math.min(lift, Math.floor(room - lineH)));
 }
+// Rule 6: the chat peek. On a phone the keyboard is taller than the chat box,
+// so the lifted bar covers the whole chat. While that is so, the newest lines
+// are drawn again in a strip right on top of the lifted bar, laid over the map
+// (the map is neither resized nor moved). Every number comes from
+// visualViewport and the measured boxes: the visible band is
+// [vv.offsetTop, vv.offsetTop + vv.height] in layout px, the lifted bar's top
+// is the band's bottom minus the bar's height. A peek line is one line box
+// (nowrap), so the strip is exactly lines * lineH + padY * 2 high. Fewer lines
+// when the band is too short; null = no peek (bar not lifted, pinch / focus
+// zoom, or the chat itself still shows `want` lines above the bar).
+export const PEEK_LINES = 3;
+export interface Peek { top: number; lines: number }
+export function chatPeek(
+  vv: VV | null | undefined, barH: number, chatTop: number, chatPadTop: number,
+  lineH: number, padY: number, lift: number, want: number = PEEK_LINES,
+): Peek | null {
+  if (!vv || vv.scale !== 1 || lift <= 0 || !(lineH > 0)) return null;
+  const bottom = vv.offsetTop + vv.height - barH; // top of the lifted bar
+  if (bottom - (chatTop + chatPadTop) >= want * lineH) return null; // the chat is not covered
+  const lines = Math.min(want, Math.floor((bottom - vv.offsetTop - padY * 2) / lineH));
+  if (lines < 1) return null;
+  return { top: bottom - (lines * lineH + padY * 2), lines };
+}
 // Rule 3: a change of 1px or less is not written.
 export function needsWrite(prev: number, next: number): boolean {
   return Math.abs(next - prev) > 1;

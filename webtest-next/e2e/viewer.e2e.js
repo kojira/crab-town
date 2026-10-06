@@ -124,6 +124,7 @@ test("iPhone 13 (390x844): layout of 1.1, real join / move / interact / say / ap
     for (let i = 0; i < 50; i++) { if (JSON.parse(fs.readFileSync(town.data, "utf8")).applications) break; await page.waitForTimeout(100); }
     assert.deepEqual(JSON.parse(fs.readFileSync(town.data, "utf8")).applications, [{ house: "labomi-house", pubkey: pk }], "/plots/apply reached the data file");
     await shot(page, "phone-390");
+    assert.equal(await page.$eval("#peek", (e) => e.hidden), true, "no peek without the keyboard");
 
     // keyboard (2): a stand-in visualViewport shrinks by 336px -> only the input bar moves
     const bar0 = await rect(page, "#inputbar");
@@ -138,6 +139,39 @@ test("iPhone 13 (390x844): layout of 1.1, real join / move / interact / say / ap
     assert.ok(line1.y >= chat1.y && line1.y + line1.h <= chat1.y + chat1.h, `line 1 fully visible: ${line1.y}..${line1.y + line1.h} in ${chat1.y}..${chat1.y + chat1.h}`);
     assert.ok(line1.y >= map1.y + map1.h, `line 1 is below the map: ${line1.y} >= ${map1.y + map1.h}`);
     await shot(page, "phone-390-keyboard");
+    // typing with the keyboard up: two more lines, so there are three for the peek (2 rule 6)
+    for (const t of ["二行目", "三行目のちょっと長めの発言でも一行に収まって省略される ⚡⚡⚡⚡⚡⚡⚡⚡"]) {
+      await page.fill("#say", t);
+      await page.click("#send");
+      await page.waitForFunction((t) => document.getElementById("chatlog").textContent.includes(t), t);
+    }
+    await shot(page, "phone-390-keyboard-3lines");
+    // rule 6: the newest 3 lines, right above the lifted bar, all inside visualViewport, not under the bar
+    const vv = await page.evaluate(() => ({ top: window.__vv.offsetTop, bottom: window.__vv.offsetTop + window.__vv.height }));
+    assert.equal(await page.$eval("#peek", (e) => e.hidden), false, "the peek is shown while the keyboard is up");
+    const want = await page.$$eval("#chatlog .line", (l) => l.slice(-3).map((e) => e.textContent));
+    const got = await page.$$eval("#peek .line", (l) => l.map((e) => e.textContent));
+    assert.deepEqual(got, want, "the peek holds the newest 3 lines in order");
+    const peek = await rect(page, "#peek");
+    const lines = await page.$$eval("#peek .line", (l) => l.map((e) => { const r = e.getBoundingClientRect(); return { y: r.y, h: r.height, x: r.x, w: r.width }; }));
+    for (const l of lines) {
+      assert.ok(l.h > 0 && l.y >= vv.top - 0.5 && l.y + l.h <= vv.bottom + 0.5, `peek line inside visualViewport: ${JSON.stringify(l)} in ${vv.top}..${vv.bottom}`);
+      assert.ok(l.y + l.h <= bar1.y + 0.5, `peek line not under the input bar: ${l.y + l.h} <= ${bar1.y}`);
+      assert.ok(l.x >= -0.5 && l.x + l.w <= 390.5, `peek line inside the width: ${JSON.stringify(l)}`);
+    }
+    assert.ok(Math.abs(peek.y + peek.h - bar1.y) <= 1, `the peek sits right on the bar: ${peek.y + peek.h} vs ${bar1.y}`);
+    assert.deepEqual(await rect(page, "#mapwrap"), map0, "the peek does not resize or move the map");
+    // a new line while typing shows up in the peek
+    await page.fill("#say", "四行目");
+    await page.click("#send");
+    await page.waitForFunction(() => Array.from(document.querySelectorAll("#peek .line")).pop()?.textContent.includes("四行目"));
+    assert.equal(await page.$$eval("#peek .line", (l) => l.length), 3);
+    // keyboard closed: back to how it was
+    await page.evaluate(() => { window.__vv.height = innerHeight; window.__vv.dispatchEvent(new Event("resize")); });
+    assert.equal(await page.$eval("#peek", (e) => e.hidden), true, "the peek goes away with the keyboard");
+    assert.deepEqual(await rect(page, "#inputbar"), bar0, "the input bar is back");
+    assert.deepEqual(await rect(page, "#mapwrap"), map0, "the map is unchanged");
+    await shot(page, "phone-390-keyboard-closed");
   } finally { await ctx.close(); }
 });
 

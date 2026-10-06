@@ -66,6 +66,29 @@ test("keyboard lift = innerHeight - (vv.height + vv.offsetTop), never negative, 
   assert.equal(C.needsWrite(0, 336), true);
 });
 
+test("chat peek (2 rule 6): the newest lines sit right on the lifted bar, inside visualViewport", () => {
+  // iPhone 13 in WebKit: innerHeight 664, keyboard 336 -> vv 0..328, bar 57, chat from 385 (6px padding), 23.2px lines, 4px strip padding
+  const vv = { height: 328, offsetTop: 0, scale: 1 };
+  const p = C.chatPeek(vv, 57, 385, 6, 23.2, 4, 336);
+  assert.equal(p.lines, 3);
+  assert.ok(Math.abs(p.top + 3 * 23.2 + 8 - (328 - 57)) < 1e-9, `strip bottom = bar top: ${p.top}`);
+  assert.ok(p.top >= vv.offsetTop, "strip inside the visual viewport");
+  // Safari panned the visual viewport: the band moves with offsetTop
+  const q = C.chatPeek({ height: 328, offsetTop: 100, scale: 1 }, 57, 385, 6, 23.2, 4, 236);
+  assert.ok(Math.abs(q.top + 3 * 23.2 + 8 - (428 - 57)) < 1e-9 && q.top >= 100, `panned: ${q.top}`);
+  // a very short band: fewer lines, still inside; none fits: no peek
+  const r = C.chatPeek({ height: 120, offsetTop: 0, scale: 1 }, 57, 385, 6, 23.2, 4, 544);
+  assert.equal(r.lines, 2); assert.ok(r.top >= 0, `short band: ${r.top}`);
+  assert.equal(C.chatPeek({ height: 80, offsetTop: 0, scale: 1 }, 57, 385, 6, 23.2, 4, 584), null);
+  // no keyboard / zoomed / no visualViewport: no peek
+  assert.equal(C.chatPeek({ height: 664, offsetTop: 0, scale: 1 }, 57, 385, 6, 23.2, 4, 0), null);
+  assert.equal(C.chatPeek({ height: 328, offsetTop: 0, scale: 1.5 }, 57, 385, 6, 23.2, 4, 336), null);
+  assert.equal(C.chatPeek(null, 57, 385, 6, 23.2, 4, 336), null);
+  // a small keyboard that still leaves 3 lines of the chat above the bar: the chat itself is enough
+  assert.equal(C.chatPeek({ height: 600, offsetTop: 0, scale: 1 }, 57, 385, 6, 23.2, 4, 64), null);
+  assert.equal(C.chatPeek({ height: 500, offsetTop: 0, scale: 1 }, 57, 385, 6, 23.2, 4, 164).lines, 3);
+});
+
 test("camera: clamped to the town, centred when the town is smaller than the view", () => {
   const r = { id: "town", width: 58, height: 20 };
   const c = C.centerOn({ x: 48, y: 3 }, 28, 390, 489, r);
