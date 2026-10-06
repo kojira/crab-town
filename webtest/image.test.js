@@ -85,7 +85,7 @@ test("the image button is hidden until the town answers this pubkey as owner", (
   assert.equal(s.match(/showImageButton\(\)/g).length, 2); // defined once, called once
   assert.match(s, /ev\.role === "owner" && !myActor\) \{[^}]*showImageButton\(\)/);
   // the thumbnail is capped
-  assert.match(html, /#log a\.img img \{[^}]*max-width:min\(320px, 100%\); max-height:240px;/);
+  assert.match(html, /#log a\.img img \{[^}]*max-width:min\(240px, 100%\); max-height:120px;/);
   // iOS Safari: the file input is not display:none (it would not open the picker)
   assert.match(html, /\.pickbtn input \{ position:absolute; inset:0;[^}]*opacity:0;/);
 });
