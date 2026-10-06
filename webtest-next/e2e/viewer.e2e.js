@@ -125,6 +125,7 @@ test("iPhone 13 (390x844): layout of 1.1, real join / move / interact / say / ap
     assert.deepEqual(JSON.parse(fs.readFileSync(town.data, "utf8")).applications, [{ house: "labomi-house", pubkey: pk }], "/plots/apply reached the data file");
     await shot(page, "phone-390");
     assert.equal(await page.$eval("#peek", (e) => e.hidden), true, "no peek without the keyboard");
+    const at0 = await page.evaluate((pk) => window.__townNext.tileToScreen(window.__townNext.state.actors[pk].pos.x, window.__townNext.state.actors[pk].pos.y), pk);
 
     // keyboard (2): a stand-in visualViewport shrinks by 336px -> only the input bar moves
     const bar0 = await rect(page, "#inputbar");
@@ -161,6 +162,14 @@ test("iPhone 13 (390x844): layout of 1.1, real join / move / interact / say / ap
     }
     assert.ok(Math.abs(peek.y + peek.h - bar1.y) <= 1, `the peek sits right on the bar: ${peek.y + peek.h} vs ${bar1.y}`);
     assert.deepEqual(await rect(page, "#mapwrap"), map0, "the peek does not resize or move the map");
+    // rule 7: my whole drawing (name tag .. circle) is inside visualViewport and above the peek and the bar
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+    const span = await page.evaluate((pk) => window.__townNext.actorSpan(pk), pk);
+    const sTop = map0.y + span.top, sBot = map0.y + span.bottom;
+    assert.ok(sTop >= vv.top - 0.5 && sBot <= vv.bottom + 0.5, `me inside visualViewport: ${sTop}..${sBot} in ${vv.top}..${vv.bottom}`);
+    assert.ok(sTop >= map0.y - 0.5 && sBot <= map0.y + map0.h + 0.5, `me on the map: ${sTop}..${sBot}`);
+    assert.ok(sBot <= peek.y + 0.5, `me not under the peek: ${sBot} <= ${peek.y}`);
+    assert.ok(sBot <= bar1.y + 0.5, `me not under the input bar: ${sBot} <= ${bar1.y}`);
     // a new line while typing shows up in the peek
     await page.fill("#say", "四行目");
     await page.click("#send");
@@ -171,6 +180,9 @@ test("iPhone 13 (390x844): layout of 1.1, real join / move / interact / say / ap
     assert.equal(await page.$eval("#peek", (e) => e.hidden), true, "the peek goes away with the keyboard");
     assert.deepEqual(await rect(page, "#inputbar"), bar0, "the input bar is back");
     assert.deepEqual(await rect(page, "#mapwrap"), map0, "the map is unchanged");
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+    const at1 = await page.evaluate((pk) => window.__townNext.tileToScreen(window.__townNext.state.actors[pk].pos.x, window.__townNext.state.actors[pk].pos.y), pk);
+    assert.deepEqual(at1, at0, "the map's scroll is back where it was before the keyboard");
     await shot(page, "phone-390-keyboard-closed");
   } finally { await ctx.close(); }
 });

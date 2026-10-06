@@ -116,6 +116,40 @@ export function centerOn(p: Pos, tile: number, viewW: number, viewH: number, roo
 export function screenToTile(cam: Cam, px: number, py: number, tile: number): Pos {
   return { x: Math.floor((px + cam.x) / tile), y: Math.floor((py + cam.y) / tile) };
 }
+// How far an actor's drawing reaches above / below the centre of its tile
+// (main.ts draw() uses the same numbers): the name tag box is TAG_H px high
+// with its text baseline TAG_ASC px below its top, at TAG_RISE tiles above the
+// centre; the circle has radius ACTOR_R tiles and a ACTOR_STROKE px outline.
+export const ACTOR_R = 0.36, ACTOR_STROKE = 2, TAG_RISE = 0.9, TAG_H = 16, TAG_ASC = 12;
+export interface ActorBox { above: number; below: number }
+export function actorBox(tile: number): ActorBox {
+  return { above: tile * TAG_RISE + TAG_ASC, below: tile * ACTOR_R + ACTOR_STROKE / 2 };
+}
+// Rule 7 (docs/town-next-ui.md 2): while the keyboard is up, the part of the
+// map that can still be seen is the band from the top of visualViewport to the
+// top of whatever lies over the map from below (the peek when shown, else the
+// lifted input bar). All inputs are layout px (the same space as
+// getBoundingClientRect / vv.offsetTop); the band is returned in map-local px.
+// null = nothing of the map is visible.
+export interface Band { top: number; bottom: number }
+export function keyboardBand(vvTop: number, mapTop: number, mapBottom: number, coverTop: number): Band | null {
+  const top = Math.max(vvTop, mapTop) - mapTop, bottom = Math.min(coverTop, mapBottom) - mapTop;
+  return bottom > top ? { top, bottom } : null;
+}
+// Move the camera vertically by as little as needed so that the actor at p
+// (whole drawing: tag to circle) lies inside the band. If the band is shorter
+// than the drawing, centre the drawing in it. The result is deliberately not
+// clamped to the town: near the town's edge the band may need the view to go
+// past it (the empty background shows there). x is left as it is.
+export function camInBand(cam: Cam, p: Pos, tile: number, band: Band): Cam {
+  const b = actorBox(tile), cy = (p.y + 0.5) * tile;
+  const lo = band.top + b.above, hi = band.bottom - b.below; // allowed screen y of the centre
+  if (hi < lo) return { x: cam.x, y: cy - ((band.top + band.bottom) / 2 + (b.above - b.below) / 2) };
+  const sy = cy - cam.y;
+  if (sy < lo) return { x: cam.x, y: cy - lo };
+  if (sy > hi) return { x: cam.x, y: cy - hi };
+  return cam;
+}
 // a tap that moved further than this is a drag (pan), not a tap
 export const DRAG_PX = 8;
 export function isDrag(dx: number, dy: number): boolean {

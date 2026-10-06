@@ -89,6 +89,38 @@ test("chat peek (2 rule 6): the newest lines sit right on the lifted bar, inside
   assert.equal(C.chatPeek({ height: 500, offsetTop: 0, scale: 1 }, 57, 385, 6, 23.2, 4, 164).lines, 3);
 });
 
+test("keyboard band (2 rule 7): my whole drawing goes between the top of visualViewport and the peek", () => {
+  // the drawing: tag box top = centre - (0.9 tile + 12), circle bottom = centre + 0.36 tile + 1
+  assert.deepEqual(C.actorBox(28), { above: 28 * 0.9 + 12, below: 28 * 0.36 + 1 });
+  // iPhone 13 WebKit: map 0..385, vv 0..328, peek top 194.4 -> band 0..194.4 (map-local)
+  const band = C.keyboardBand(0, 0, 385, 194.4);
+  assert.deepEqual(band, { top: 0, bottom: 194.4 });
+  // panned visual viewport / the map starting lower: map-local, cut to the map
+  assert.deepEqual(C.keyboardBand(100, 20, 405, 300), { top: 80, bottom: 280 });
+  assert.deepEqual(C.keyboardBand(0, 0, 385, 600), { top: 0, bottom: 385 });
+  assert.equal(C.keyboardBand(400, 0, 385, 500), null, "nothing of the map is visible");
+  // me at the spawn garden (24, 8): centred in a 385px view the circle is under the peek; after the move it is inside
+  const r = { id: "town", width: 58, height: 20 };
+  const c0 = C.centerOn({ x: 24, y: 8 }, 28, 390, 385, r);
+  const span = (c) => { const b = C.actorBox(28), cy = 8.5 * 28 - c.y; return { top: cy - b.above, bottom: cy + b.below }; };
+  assert.ok(span(c0).bottom > band.bottom, `before: under the peek ${JSON.stringify(span(c0))}`);
+  const c1 = C.camInBand(c0, { x: 24, y: 8 }, 28, band);
+  assert.equal(c1.x, c0.x, "x is not touched");
+  assert.ok(span(c1).top >= band.top && span(c1).bottom <= band.bottom, `after: inside ${JSON.stringify(span(c1))}`);
+  assert.ok(Math.abs(span(c1).bottom - band.bottom) < 1e-9, "moved by as little as needed (bottom edge on the band)");
+  // already inside: unchanged; above the band: pulled down to its top
+  const inside = { x: 5, y: 8.5 * 28 - 100 };
+  assert.equal(C.camInBand(inside, { x: 24, y: 8 }, 28, band), inside);
+  const high = C.camInBand({ x: 0, y: 8.5 * 28 - 10 }, { x: 24, y: 8 }, 28, band);
+  assert.ok(Math.abs(span(high).top - band.top) < 1e-9, `pulled into the band: ${JSON.stringify(span(high))}`);
+  // near the top of the town the camera may go past it (not clamped) so the drawing still fits
+  const top = C.camInBand({ x: 0, y: 0 }, { x: 24, y: 0 }, 28, { top: 50, bottom: 194.4 });
+  assert.ok(top.y < 0, `past the town's top edge: ${top.y}`);
+  // a band shorter than the drawing: the drawing is centred in it
+  const tiny = { top: 10, bottom: 30 }, t = C.camInBand({ x: 0, y: 0 }, { x: 24, y: 8 }, 28, tiny), s = span(t);
+  assert.ok(Math.abs((s.top + s.bottom) / 2 - 20) < 1e-9, `centred: ${JSON.stringify(s)}`);
+});
+
 test("camera: clamped to the town, centred when the town is smaller than the view", () => {
   const r = { id: "town", width: 58, height: 20 };
   const c = C.centerOn({ x: 48, y: 3 }, 28, 390, 489, r);
