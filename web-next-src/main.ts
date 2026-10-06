@@ -320,6 +320,10 @@ async function connect() {
     const line = C.applyMsg(st, m);
     if (line) addChat(line);
     if (m.type === "snapshot" && firstRoom) resizeCanvas();
+    // follow me in the same task as the state change, not a frame later in
+    // draw(): until then the camera is stale, and a tap made in between is
+    // mapped through a different camera than the one it was aimed with
+    else if (!panned) recenter(false);
   };
   ws.onclose = () => { setTimeout(() => void connect(), 3000); ws = null; };
 }
