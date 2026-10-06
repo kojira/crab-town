@@ -17,10 +17,11 @@ test("1: a talk that reached 0 relays fails and the input is kept", () => {
   assert.equal(it.status, "failed");
   assert.match(it.error, /0/);
   assert.equal(T.mayClear(it), false);
-  // nostr.js: the submit handler does not clear the input itself
+  // nostr.js: the submit handler clears the input on send (owner: the text stayed after sending);
+  // a failed line stays in the log with its retry button
   const js = src("nostr.js");
   const submit = js.slice(js.indexOf('$("talkForm").onsubmit'));
-  assert.doesNotMatch(submit.slice(0, submit.indexOf("};")), /value = ""/);
+  assert.match(submit.slice(0, submit.indexOf("};")), /talkIn\.value = ""/);
   assert.doesNotMatch(js, /sent \$\{cmd\.type\} to \$\{n\} relay/);
 });
 
