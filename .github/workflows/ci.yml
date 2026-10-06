@@ -13,16 +13,26 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - name: build
-        run: go build ./...
-      - name: vet
-        run: go vet ./...
-      - name: test
-        run: go test ./...
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
+      # node + pnpm from mise.toml
+      - uses: jdx/mise-action@v5
+      - name: install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+      - name: typecheck (tsc, strict)
+        run: pnpm typecheck
+      - name: build web (web-src/*.ts -> web/*.js)
+        run: pnpm build
+      - name: generated web/ matches the commit
+        run: |
+          git status --porcelain -- web/
+          git diff --exit-code -- web/
+          test -z "$(git status --porcelain -- web/)"
       - name: viewer tests (node --test)
-        run: node --test webtest/*.test.js
+        run: pnpm test
+      - name: go build
+        run: go build ./...
+      - name: go vet
+        run: go vet ./...
+      - name: go test
+        run: go test ./...
       - name: line count (<= 800 per source file)
         run: bash scripts/check-lines.sh

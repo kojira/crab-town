@@ -67,7 +67,7 @@ test("knock targets: every house, and a house nobody listens at is marked", () =
 
 test("the knock button has a house picker, not a fixed nostarou-house", () => {
   const html = fs.readFileSync(path.join(__dirname, "../web/nostr.html"), "utf8");
-  const js = fs.readFileSync(path.join(__dirname, "../web/nostr.js"), "utf8");
+  const js = fs.readFileSync(path.join(__dirname, "../web-src/nostr.ts"), "utf8");
   assert.match(html, /<select[^>]*id="knockTo"/);
   assert.doesNotMatch(js, /type: "knock", room: "nostarou-house"/);
   // phone text sizes: chat 17px+ (bigger than the 16px controls), status / buttons 15px
