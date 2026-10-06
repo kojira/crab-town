@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fail if any tracked source file (*.go, *.html, *.js, *.css; go.sum excluded)
+# Fail if any tracked source file (*.go, *.html, *.js, *.ts, *.mjs, *.css; go.sum excluded)
 # has more than MAX_LINES lines (default 800).
 set -euo pipefail
 MAX_LINES="${MAX_LINES:-800}"
@@ -15,5 +15,5 @@ while IFS= read -r -d '' f; do
   else
     echo "ok:   $f $n"
   fi
-done < <(git ls-files -z -- '*.go' '*.html' '*.js' '*.css')
+done < <(git ls-files -z -- '*.go' '*.html' '*.js' '*.ts' '*.mjs' '*.css')
 exit "$fail"

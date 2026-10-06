@@ -1,0 +1,198 @@
+// generated from web-src/render.ts by scripts/build-web.mjs; edit the .ts file, not this one
+function drawSprite(rows, pal, x0, y0, flip) {
+  for (let y = 0; y < rows.length; y++) {
+    const row = rows[y];
+    for (let x = 0; x < row.length; x++) {
+      const c = pal[row[x]];
+      if (!c) continue;
+      const dx = flip ? row.length - 1 - x : x;
+      ctx.fillStyle = c;
+      ctx.fillRect(x0 + dx * P, y0 + y * P, P, P);
+    }
+  }
+}
+function labelScale() {
+  const s = typeof window !== "undefined" ? window.LABEL_SCALE : void 0;
+  return s !== void 0 && s > 1 ? s : 1;
+}
+function fitFont(text, maxW, maxPx, minPx) {
+  const k = labelScale();
+  maxW *= k;
+  maxPx = Math.round(maxPx * k);
+  minPx = Math.round(minPx * k);
+  for (let px = maxPx; px > minPx; px--) {
+    ctx.font = `bold ${px}px sans-serif`;
+    if (ctx.measureText(text).width <= maxW) return px;
+  }
+  ctx.font = `bold ${minPx}px sans-serif`;
+  return minPx;
+}
+let hover = null;
+function drawTooltip(f) {
+  const s = furnitureSize(f);
+  const px = fitFont(f.label, T * 5, 13, 9);
+  const w = Math.ceil(ctx.measureText(f.label).width) + 8, h = px + 6;
+  const x = Math.max(0, Math.min(cv.width - w, Math.round(f.pos.x * T + s.w * T / 2 - w / 2)));
+  let y = f.pos.y * T - h - 2;
+  if (y < 0) y = (f.pos.y + s.h) * T + 2;
+  y = Math.max(0, Math.min(cv.height - h, y));
+  ctx.fillStyle = "rgba(10,10,14,0.85)";
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = "#ffd84a";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+  ctx.fillStyle = "#fff";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(f.label, x + w / 2, y + h / 2 + 0.5);
+  ctx.textBaseline = "alphabetic";
+}
+cv.addEventListener("mousemove", (e) => {
+  const r = cv.getBoundingClientRect();
+  const tx = Math.floor((e.clientX - r.left) * cv.width / r.width / T);
+  const ty = Math.floor((e.clientY - r.top) * cv.height / r.height / T);
+  const room = Object.values(rooms)[0];
+  hover = room ? room.furniture.find((f) => !f.walkable && occupies(f, tx, ty)) || room.furniture.find((f) => occupies(f, tx, ty)) || null : null;
+  cv.style.cursor = hover ? "help" : "default";
+});
+cv.addEventListener("mouseleave", () => {
+  hover = null;
+});
+function drawNameTag(text, cx, topY, botY) {
+  const px = fitFont(text, T * 3, 11, 8);
+  const w = Math.ceil(ctx.measureText(text).width) + 6, h = px + 4;
+  const x = Math.max(0, Math.min(cv.width - w, Math.round(cx - w / 2)));
+  let y = botY + 1;
+  if (y + h > cv.height) y = topY - h - 1;
+  y = Math.max(0, y);
+  ctx.fillStyle = "rgba(10,10,14,0.75)";
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = "#ffd84a";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, x + w / 2, y + h / 2 + 0.5);
+  ctx.textBaseline = "alphabetic";
+}
+function drawStateIcon(state, x0, y0) {
+  const icons = { talking: "...", working: "#", away: "z" };
+  const icon = icons[state];
+  if (!icon) return;
+  const w = 12, h = 9, x = x0 + T - w, y = y0;
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(x, y, w, h);
+  ctx.fillRect(x + 1, y + h, 2, 2);
+  ctx.fillStyle = "#111";
+  ctx.font = "bold 8px sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(icon, x + w / 2, y + h / 2);
+  ctx.textBaseline = "alphabetic";
+}
+function lerpPos(v, now) {
+  const t = Math.min(1, (now - v.start) / STEP_MS);
+  return { x: v.from.x + (v.to.x - v.from.x) * t, y: v.from.y + (v.to.y - v.from.y) * t };
+}
+function actorView(a, now) {
+  let v = view[a.id];
+  if (!v) v = view[a.id] = { from: { ...a.pos }, to: { ...a.pos }, start: now, flip: false, frame: 0 };
+  if (v.to.x !== a.pos.x || v.to.y !== a.pos.y) {
+    const cur = lerpPos(v, now);
+    if (a.pos.x !== v.to.x) v.flip = a.pos.x < v.to.x;
+    v.from = cur;
+    v.to = { ...a.pos };
+    v.start = now;
+    v.frame ^= 1;
+  }
+  return v;
+}
+const SPEECH_MS = 6e3;
+const speech = {};
+function drawSpeech(a, x0, y0, now) {
+  const s = speech[a.id];
+  if (!s || now > s.until) {
+    delete speech[a.id];
+    return;
+  }
+  const k = labelScale();
+  const px = Math.round(18 * k), maxW = Math.min(T * 11 * k, cv.width - 12);
+  ctx.font = `bold ${px}px sans-serif`;
+  const lines = CrabTalk.wrap(s.text, maxW, (t) => ctx.measureText(t).width);
+  const lh = Math.round(px * 1.3);
+  const w = Math.ceil(Math.max(...lines.map((l) => ctx.measureText(l).width))) + 12, h = lines.length * lh + 8;
+  const x = Math.max(0, Math.min(cv.width - w, Math.round(x0 + T / 2 - w / 2)));
+  const y = Math.max(0, y0 - h - 6);
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(x, y, w, h);
+  ctx.fillRect(Math.round(x0 + T / 2) - 2, y + h, 4, 4);
+  ctx.fillStyle = "#111";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  lines.forEach((l, i) => ctx.fillText(l, x + 6, y + 4 + i * lh + (lh - px) / 2));
+  ctx.textBaseline = "alphabetic";
+}
+const SIT_KINDS = { sofa: 1, pinksofa: 1, chair: 1 };
+const SIT_LEGS = ["..LLLLLLLLLL....", "..BB......BB...."];
+function isSitting(a) {
+  if (!a.using) return false;
+  const r = rooms[a.room], f = r && r.furniture.find((x) => x.id === a.using);
+  return !!(f && SIT_KINDS[f.kind]);
+}
+const LIE_KINDS = { bed: 1, pinkbed: 1, guestbed: 1 };
+function isLying(a) {
+  if (!a.using) return false;
+  const r = rooms[a.room], f = r && r.furniture.find((x) => x.id === a.using);
+  return !!(f && LIE_KINDS[f.kind]);
+}
+function drawActor(a, now) {
+  const v = actorView(a, now);
+  const p = lerpPos(v, now);
+  const moving = p.x !== v.to.x || p.y !== v.to.y || !!a.target;
+  const x0 = Math.round(p.x * T), y0 = Math.round(p.y * T);
+  if (a.target) {
+    ctx.strokeStyle = "#ffd84a88";
+    ctx.setLineDash([3, 3]);
+    ctx.strokeRect(a.target.x * T + 3.5, a.target.y * T + 3.5, T - 7, T - 7);
+    ctx.setLineDash([]);
+  }
+  ctx.fillStyle = "rgba(0,0,0,0.35)";
+  ctx.fillRect(x0 + 4 * P, y0 + 15 * P, 8 * P, P);
+  const bob = moving && v.frame ? -P : 0;
+  const avatar = a.pubkey && typeof CrabAvatar !== "undefined";
+  if (avatar) CrabAvatar.draw(ctx, a, x0, y0 + bob, T);
+  else {
+    const sp = spriteFor(a);
+    if (!moving && isLying(a)) {
+      ctx.save();
+      ctx.translate(x0 + T / 2, y0 + T / 2);
+      ctx.rotate(-Math.PI / 2);
+      drawSprite(sp.body, sp.pal, -T / 2, -T / 2 - 4 * P, false);
+      drawSprite(sp.legs[0], sp.pal, -T / 2, -T / 2 + 9 * P, false);
+      ctx.restore();
+    } else if (!moving && isSitting(a)) {
+      drawSprite(sp.body, sp.pal, x0, y0 + 2 * P, v.flip);
+      drawSprite(SIT_LEGS, sp.pal, x0, y0 + 13 * P, v.flip);
+    } else {
+      drawSprite(sp.body, sp.pal, x0, y0 + bob, v.flip);
+      drawSprite(sp.legs[moving ? v.frame : 0], sp.pal, x0, y0 + 13 * P, v.flip);
+    }
+  }
+  drawStateIcon(a.state, x0, y0);
+  drawNameTag(avatar ? CrabAvatar.label(a) : a.name, x0 + T / 2, y0, y0 + T);
+  drawSpeech(a, x0, y0, now);
+}
+function draw() {
+  const now = performance.now();
+  const room = Object.values(rooms)[0];
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  if (room) {
+    drawFloor(room);
+    drawWalls(room);
+    for (const f of room.furniture) if (f.walkable) drawFurniture(f);
+    for (const f of room.furniture) if (!f.walkable) drawFurniture(f);
+    drawHiddenZones(room);
+    drawUseLamps(room);
+    for (const a of Object.values(actors)) if (a.room === room.id && !a.hidden) drawActor(a, now);
+    if (hover) drawTooltip(hover);
+  }
+  requestAnimationFrame(draw);
+}

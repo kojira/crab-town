@@ -66,7 +66,7 @@ test("the picture is clipped to a tile-sized circle; without it the initial", ()
 });
 
 test("render.js draws a pubkey actor as the avatar, residents keep their sprites", () => {
-  const src = fs.readFileSync(path.join(__dirname, "../web/render.js"), "utf8");
+  const src = fs.readFileSync(path.join(__dirname, "../web-src/render.ts"), "utf8");
   assert.match(src, /a\.pubkey && typeof CrabAvatar/);
   assert.match(src, /CrabAvatar\.draw\(ctx, a,/);
   for (const f of ["nostr.html", "index.html"]) {
@@ -76,11 +76,11 @@ test("render.js draws a pubkey actor as the avatar, residents keep their sprites
 });
 
 test("the Pages viewer no longer drives nostarou: the owner's actor is its own avatar", () => {
-  const src = fs.readFileSync(path.join(__dirname, "../web/nostr.js"), "utf8");
+  const src = fs.readFileSync(path.join(__dirname, "../web-src/nostr.ts"), "utf8");
   assert.doesNotMatch(src, /ownerActor/);
   assert.match(src, /myActor = ownAvatarId\(me\)/);
   assert.match(src, /CrabAvatar\.load\(a\.pubkey, RELAYS, verifyEvent\)/);
-  const cfg = fs.readFileSync(path.join(__dirname, "../web/config.js"), "utf8");
+  const cfg = fs.readFileSync(path.join(__dirname, "../web-src/config.ts"), "utf8");
   assert.doesNotMatch(cfg, /ownerActor/);
   assert.match(cfg, /r\.kojira\.io.*n\.kojira\.io.*x\.kojira\.io/);
 });

@@ -6,6 +6,8 @@ const path = require("node:path");
 const T = require("../web/chatui.js");
 const Chat = require("../web/chatlog.js");
 const read = (f) => fs.readFileSync(path.join(__dirname, "../web", f), "utf8");
+// source assertions: web/*.js is generated from web-src/*.ts
+const src = (f) => fs.readFileSync(path.join(__dirname, "../web-src", f.replace(/\.js$/, ".ts")), "utf8");
 
 test("1: a talk that reached 0 relays fails and the input is kept", () => {
   const o = T.outbox();
@@ -16,7 +18,7 @@ test("1: a talk that reached 0 relays fails and the input is kept", () => {
   assert.match(it.error, /0/);
   assert.equal(T.mayClear(it), false);
   // nostr.js: the submit handler does not clear the input itself
-  const js = read("nostr.js");
+  const js = src("nostr.js");
   const submit = js.slice(js.indexOf('$("talkForm").onsubmit'));
   assert.doesNotMatch(submit.slice(0, submit.indexOf("};")), /value = ""/);
   assert.doesNotMatch(js, /sent \$\{cmd\.type\} to \$\{n\} relay/);
@@ -52,7 +54,7 @@ test("2: without NIP-07 the input says how to get to talk", () => {
   assert.match(html, /<input id="talkText"[^>]*placeholder="NIP-07[^"]*ログインすると話せる"[^>]*disabled>/);
   assert.match(html, /id="talkHint"/);
   // no throwaway key for talking
-  assert.doesNotMatch(read("nostr.js"), /type: "talk"[^\n]*anonKey/);
+  assert.doesNotMatch(src("nostr.js"), /type: "talk"[^\n]*anonKey/);
 });
 
 test("4: history is drawn oldest first, with the event's time", () => {
@@ -65,7 +67,7 @@ test("4: history is drawn oldest first, with the event's time", () => {
   assert.deepEqual(got, ["1", "2", "2b", "3"]);
   const e = Chat.entry({ type: "talk", by: "nostr:x", message: "hi", at: 1700000000 }, {});
   assert.equal(e.at, 1700000000);
-  assert.match(read("chatlog.js"), /new Date\(at \* 1000\)/);
+  assert.match(src("chatlog.js"), /new Date\(at \* 1000\)/);
 });
 
 test("5: only refused commands get a line; ok goes into the status", () => {
@@ -88,7 +90,7 @@ test("6: a say answering me reads '→ あなた'; others' replies are dimmed", 
   assert.ok(Chat.entry({ type: "talk", by: "nostr:cccccccccccccccc", message: "x" }, me).dim);
   assert.ok(!Chat.entry({ type: "talk", by: "nostr:aaaaaaaaaaaaaaaa", message: "x" }, me).dim);
   // the reply_to tag of the state event is read
-  assert.match(read("nostr.js"), /tag\("reply_to"\)/);
+  assert.match(src("nostr.js"), /tag\("reply_to"\)/);
 });
 
 test("7: phone log grows while typing, new-lines button, toggle says what it does", () => {
@@ -114,5 +116,5 @@ test("8: bubbles wrap over lines and stay longer for longer text", () => {
   assert.ok(T.speechMs("あ".repeat(140)) > T.speechMs("あ".repeat(40)));
   assert.ok(T.speechMs("あ".repeat(140)) >= 20000);
   assert.ok(T.speechMs("あ".repeat(5000)) <= T.SPEECH_MAX_MS);
-  assert.doesNotMatch(read("render.js"), /slice\(0, 40\)/);
+  assert.doesNotMatch(src("render.js"), /slice\(0, 40\)/);
 });
