@@ -68,7 +68,7 @@ function apply(ev) {
   } else if (ev.type === "knock") {
     CrabChat.add(CrabChat.entry(ev, chatCtx()));
   } else if (ev.type === "talk") {
-    const mine = me && ev.by === ownAvatarId(me) && live && outbox.echo(ev.message || "");
+    const mine = me && ev.by === ownAvatarId(me) && live && outbox.echo(ev.message || "", ev.image);
     if (mine) delivered(mine);
     else CrabChat.add(CrabChat.entry(ev, chatCtx()));
   } else if (ev.type === "say" && ev.actor) {
@@ -82,6 +82,7 @@ function apply(ev) {
     if (me && ev.p === me && ev.role === "owner" && !myActor) {
       myActor = ownAvatarId(me);
       CrabView.setSelf(myActor);
+      showImageButton();
     }
   }
   updateStatus();
@@ -236,7 +237,7 @@ const talkActor = () => cfg.talkTo || "nostarou";
 const talkName = () => actors[talkActor()] && actors[talkActor()].name || "\u306E\u3059\u305F\u308D\u3046";
 let typingTimer;
 function showStatus(it) {
-  CrabChat.setStatus(rows.get(it.key), it.status, CrabTalk.STATUS_TEXT[it.status], it.error, () => talk(it.text, it));
+  CrabChat.setStatus(rows.get(it.key), it.status, CrabTalk.STATUS_TEXT[it.status], it.error, () => talk(it.text, it, it.image));
 }
 const talkIn = $("talkText");
 function delivered(it) {
@@ -263,18 +264,18 @@ function relayRejected(id, url, why) {
     return;
   }
 }
-async function talk(text, again) {
-  const it = again || outbox.add(text);
+async function talk(text, again, image) {
+  const it = again || outbox.add(text, image);
   if (again) {
     it.status = "sending";
     it.error = "";
     it.eventId = "";
     showStatus(it);
-  } else rows.set(it.key, CrabChat.add({ kind: "self", who: "\u3042\u306A\u305F", to: "", text }));
+  } else rows.set(it.key, CrabChat.add({ kind: "self", who: "\u3042\u306A\u305F", to: "", text, image }));
   showStatus(it);
   let r;
   try {
-    r = await publish({ type: "talk", text });
+    r = await publish(image ? { type: "talk", text, image } : { type: "talk", text });
   } catch (e) {
     outbox.signFailed(it, errText(e));
     failed(it);
@@ -350,6 +351,42 @@ $("talkForm").onsubmit = (e) => {
     return;
   }
   talk(text);
+};
+const BLOSSOM = qs.get("blossom") || cfg.blossom || "https://blossom.primal.net";
+const imgPick = $("imgPick"), imgBtn = $("imgBtn");
+function showImageButton() {
+  imgBtn.hidden = false;
+  imgPick.disabled = false;
+}
+imgPick.onchange = async () => {
+  const file = imgPick.files && imgPick.files[0];
+  imgPick.value = "";
+  if (!file || !myActor || !window.nostr) return;
+  const bad = CrabUpload.checkFile(file);
+  if (bad) {
+    CrabChat.error("\u753B\u50CF: " + bad);
+    return;
+  }
+  const signer = window.nostr;
+  imgBtn.classList.add("busy");
+  imgBtn.setAttribute("aria-busy", "true");
+  const note = CrabChat.system(`\u753B\u50CF\u3092\u30A2\u30C3\u30D7\u30ED\u30FC\u30C9\u4E2D\u2026 (${Math.ceil(file.size / 1024)}KB \u2192 ${new URL(BLOSSOM).host})`);
+  try {
+    const url = await CrabUpload.upload(BLOSSOM, file, { fetch: (u, o) => fetch(u, o), sign: (t) => signer.signEvent(t), digest: (d) => crypto.subtle.digest("SHA-256", d) });
+    note?.remove();
+    const text = talkIn.value.trim();
+    if ([...text].length > 280) {
+      CrabChat.error("talk: 280\u6587\u5B57\u307E\u3067");
+      return;
+    }
+    talk(text, void 0, url);
+  } catch (e) {
+    note?.remove();
+    CrabChat.error("\u753B\u50CF: " + errText(e));
+  } finally {
+    imgBtn.classList.remove("busy");
+    imgBtn.removeAttribute("aria-busy");
+  }
 };
 if (!TOWN || !/^[0-9a-f]{64}$/.test(TOWN) || RELAYS.length === 0) {
   statusEl.textContent = "town pubkey / relays not configured (config.js or ?town=&relays=)";

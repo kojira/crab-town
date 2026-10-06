@@ -33,6 +33,7 @@ type Command struct {
 	Room    string `json:"room,omitempty"`    // knock: house id or room id
 	Message string `json:"message,omitempty"` // knock
 	Text    string `json:"text,omitempty"`    // talk (plain text, <= world.MaxTalk runes)
+	Image   string `json:"image,omitempty"`   // talk: an https image URL (owner only; the world refuses guests)
 	To      string `json:"to,omitempty"`      // talk: actor id (default: Handler.TalkTo)
 }
 
@@ -151,7 +152,8 @@ func (h *Handler) Handle(ev *Event) Result {
 		if to == "" {
 			to = h.TalkTo
 		}
-		res.Err = h.World.Talk(GuestID(ev.PubKey), res.Role, to, cmd.Text)
+		// an image is owner-only: the world checks the verified role, not the viewer
+		res.Err = h.World.TalkImage(GuestID(ev.PubKey), res.Role, to, cmd.Text, cmd.Image)
 	case "move":
 		if res.Role != RoleOwner {
 			res.Err = ErrGuestOnly

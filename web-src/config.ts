@@ -8,4 +8,5 @@ window.CRAB_NOSTR = {
   // actors whose knocks reach someone (the town's CRAB_EXTGATE_ACTOR). Knocks on
   // other houses are still recorded as town events, and the menu says so.
   listening: ["nostarou"],     // nostarou is connected through extgate and moves by itself
+  blossom: "https://blossom.primal.net", // where the owner uploads chat images (BUD-02, NIP-07 signed)
 };

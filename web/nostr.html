@@ -40,6 +40,13 @@
   #log .retry { font-size:12px; padding:1px 8px; margin-left:4px; color:#ffb3b3; border-color:#a55; }
   #logwrap { position:relative; }
   #newLines { position:absolute; right:12px; bottom:6px; z-index:1; background:#ffd84a; color:#111; border:0; font-weight:bold; }
+  /* chat images (owner only): a capped thumbnail that links to the full image */
+  #log a.img { display:block; margin:4px 0 2px; width:max-content; max-width:100%; }
+  #log a.img img { display:block; max-width:min(240px, 100%); max-height:120px; width:auto; height:auto; object-fit:contain; border:1px solid #444; border-radius:4px; background:#111; }
+  /* the file input stays in the label (tappable on iOS Safari), visually hidden but not display:none */
+  .pickbtn { position:relative; display:inline-flex; align-items:center; background:#2b2e38; color:#ffd84a; border:1px solid #555; padding:4px 10px; border-radius:4px; cursor:pointer; white-space:nowrap; }
+  .pickbtn[hidden] { display:none; } .pickbtn.busy { opacity:.5; pointer-events:none; }
+  .pickbtn input { position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; font-size:16px; }
   #typing { font-size:12px; color:#ffd84a; padding:2px 0; } #talkHint { font-size:12px; color:#ffb347; margin:4px 0 0; }
   /* narrow screens (set by mobile.js): fixed-scale map you drag around.
      Phones: text at 15-16px, the map fills the height down to the chat panel. */
@@ -71,7 +78,8 @@
   body.narrow #chat.closed #log, body.narrow #chat.closed #newLines { display:none; }
   body.narrow #typing, body.narrow #talkHint { padding:0 10px; font-size:14px; } /* the input stays usable when closed */
   body.narrow #talkForm { margin:0; padding:6px 10px calc(8px + env(safe-area-inset-bottom, 0px)); border-top:1px solid #333; }
-  body.narrow #talkText { max-width:none; font-size:16px; padding:8px; } body.narrow #talk { padding:7px 14px; }
+  body.narrow #talkText { max-width:none; font-size:16px; padding:8px; } body.narrow #talk, body.narrow .pickbtn { padding:7px 14px; }
+  body.narrow .pickbtn .lbl { display:none; } body.narrow #log a.img img { max-width:min(240px, 100%); max-height:180px; }
 </style>
 </head>
 <body>
@@ -97,6 +105,7 @@
 <div id="typing" hidden></div>
 <p id="talkHint">NIP-07 拡張（nos2x・Alby など）でログインすると話せる（今は閲覧のみ）</p>
 <form id="talkForm"><input id="talkText" class="cmd" maxlength="280" enterkeyhint="send" placeholder="NIP-07 拡張（nos2x・Alby など）でログインすると話せる" disabled>
+  <label id="imgBtn" class="pickbtn" title="画像を貼る（オーナーのみ）" hidden><input type="file" id="imgPick" accept="image/png,image/jpeg,image/gif,image/webp" disabled>🖼<span class="lbl"> 画像</span></label>
   <button class="cmd" id="talk" disabled>話す</button></form></div>
 <script src="config.js"></script>
 <script src="sprites.js"></script>
@@ -108,6 +117,7 @@
 <script src="chatui.js"></script>
 <script src="render.js"></script>
 <script src="viewport.js"></script>
+<script src="upload.js"></script>
 <script src="chatlog.js"></script>
 <script src="mobile.js"></script>
 <script src="nostrtools.js"></script>

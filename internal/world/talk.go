@@ -2,6 +2,7 @@ package world
 
 import (
 	"errors"
+	"net/url"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -19,8 +20,28 @@ var ErrTooLong = errors.New("text too long")
 // Talk emits a talk event: by (with the role it was verified as) speaks to the
 // actor to. Anyone with an id may talk; the world itself does nothing about it.
 func (w *World) Talk(by, role, to, text string) error {
+	return w.TalkImage(by, role, to, text, "")
+}
+
+// MaxImageURL caps the length of an image URL carried by a talk.
+const MaxImageURL = 1024
+
+var ErrBadImage = errors.New("image must be an https URL")
+
+// TalkImage is Talk with an image (a URL, already uploaded elsewhere) attached.
+// Only the town owner may post images: anyone else gets ErrForbidden, whatever
+// the viewer showed them. The text may be empty when an image is attached.
+func (w *World) TalkImage(by, role, to, text, image string) error {
 	text = CleanText(text)
-	if by == "" || strings.TrimSpace(text) == "" {
+	if image != "" {
+		if role != RoleOwner {
+			return ErrForbidden
+		}
+		if !ValidImageURL(image) {
+			return ErrBadImage
+		}
+	}
+	if by == "" || (strings.TrimSpace(text) == "" && image == "") {
 		return ErrBadRequest
 	}
 	if utf8.RuneCountInString(text) > MaxTalk {
@@ -32,10 +53,20 @@ func (w *World) Talk(by, role, to, text string) error {
 		w.mu.Unlock()
 		return err
 	}
-	ev := Event{Type: EventTalk, Room: r.ID, By: by, Role: role, To: a.ID, Message: text}
+	ev := Event{Type: EventTalk, Room: r.ID, By: by, Role: role, To: a.ID, Message: text, Image: image}
 	w.mu.Unlock()
 	w.emit(ev)
 	return nil
+}
+
+// ValidImageURL: an absolute https URL with a host, no credentials, no
+// whitespace or control characters, at most MaxImageURL bytes.
+func ValidImageURL(s string) bool {
+	if len(s) > MaxImageURL || strings.ContainsFunc(s, func(r rune) bool { return r <= 0x20 || r == 0x7f || r == '"' || r == '<' || r == '>' || r == '\\' }) {
+		return false
+	}
+	u, err := url.Parse(s)
+	return err == nil && u.Scheme == "https" && u.Host != "" && u.User == nil && u.Opaque == ""
 }
 
 // CleanText drops control characters (newlines are kept, CRLF becomes LF) and

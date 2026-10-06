@@ -6,7 +6,7 @@ const CrabChat = (() => {
   interface HouseInfo { id: string; label: string; reachable?: boolean; ownerName?: string }
   interface EntryCtx { selfGuestId?: string | null; houses?: HouseInfo[]; listening?: string[] }
   // one line of the log
-  interface Entry { kind: string; who: string; text: string; at?: number; to?: string; actor?: string; dim?: boolean; error?: boolean }
+  interface Entry { kind: string; who: string; text: string; at?: number; to?: string; actor?: string; dim?: boolean; error?: boolean; image?: string }
 
   // Who said it, as the viewer sees it. ctx: { selfGuestId, houses, listening }.
   //   self     -- the viewer's own talk (the logged-in pubkey, owner or guest)
@@ -31,7 +31,9 @@ const CrabChat = (() => {
       const kind = self ? "self" : ev.role === "owner" ? "owner" : "guest";
       const who = self ? "あなた" : kind === "owner" ? "オーナー" : "来客 " + short(ev.by);
       // someone else's exchange is dimmed for a logged-in viewer
-      return { kind, who, to: ev.to || "", text: ev.message || "", at, dim: !self && !!ctx.selfGuestId };
+      // image: only an owner talk carries one (the town refuses others); drawn only if https
+      const image = ev.role === "owner" && ev.image ? ev.image : undefined;
+      return { kind, who, to: ev.to || "", text: ev.message || "", at, dim: !self && !!ctx.selfGuestId, image };
     }
     if (ev.type === "knock") {
       const h = (ctx.houses || []).find(x => x.id === ev.house);
@@ -85,6 +87,9 @@ const CrabChat = (() => {
     const m = document.createElement("span");
     m.className = "msg"; m.textContent = (e.to ? "→ " + e.to + ": " : "") + (e.text || "");
     row.append(t, " ", w, " ", m);
+    // an image: <a><img></a> built from DOM properties (CrabUpload.imageNode), never innerHTML
+    const pic = e.image && typeof CrabUpload !== "undefined" ? CrabUpload.imageNode(document, e.image) : null;
+    if (pic) { row.append(pic); pic.firstElementChild!.addEventListener("load", () => { if (stick) el.scrollTop = el.scrollHeight; }); }
     el.append(row);
     while (el.childElementCount > MAX_LINES) el.firstElementChild!.remove();
     if (stick) el.scrollTop = el.scrollHeight; else showNew(true);

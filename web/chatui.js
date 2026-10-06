@@ -6,8 +6,8 @@ const CrabTalk = /* @__PURE__ */ (() => {
     let seq = 0;
     return {
       items,
-      add(text) {
-        const it = { key: ++seq, text, status: "sending", eventId: "", error: "" };
+      add(text, image) {
+        const it = { key: ++seq, text, status: "sending", eventId: "", error: "", image };
         items.push(it);
         return it;
       },
@@ -37,8 +37,8 @@ const CrabTalk = /* @__PURE__ */ (() => {
         return it;
       },
       // the town echoing a talk event by us with this text: it arrived
-      echo(text) {
-        const it = items.find((x) => x.text === text && x.status !== "failed" && !x.echoed);
+      echo(text, image) {
+        const it = items.find((x) => x.text === text && (x.image || "") === (image || "") && x.status !== "failed" && !x.echoed);
         if (!it) return null;
         it.echoed = true;
         it.status = "delivered";
