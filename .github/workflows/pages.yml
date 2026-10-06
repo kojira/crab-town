@@ -3,7 +3,7 @@ name: pages
 on:
   push:
     branches: [main]
-    paths: ["web/**", ".github/workflows/pages.yml"]
+    paths: ["web/**", "web-src/**", "scripts/build-web.mjs", "package.json", "pnpm-lock.yaml", "mise.toml", ".github/workflows/pages.yml"]
   workflow_dispatch:
 
 permissions:
@@ -23,6 +23,19 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      # node + pnpm from mise.toml
+      - uses: jdx/mise-action@v5
+      - name: install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+      - name: typecheck (tsc, strict)
+        run: pnpm typecheck
+      - name: build web (web-src/*.ts -> web/*.js)
+        run: pnpm build
+      - name: generated web/ matches the commit
+        run: git diff --exit-code -- web/ && test -z "$(git status --porcelain -- web/)"
+      - name: viewer tests (node --test)
+        run: pnpm test
+
       - name: build site (static viewer only; the Nostr page is the entry)
         run: |
           mkdir _site
