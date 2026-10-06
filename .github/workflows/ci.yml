@@ -28,6 +28,10 @@ jobs:
           test -z "$(git status --porcelain -- web/)"
       - name: viewer tests (node --test)
         run: pnpm test
+      - name: phone input e2e (Playwright WebKit, iPhone 13)
+        run: |
+          pnpm exec playwright install --with-deps webkit
+          pnpm test:e2e
       - name: go build
         run: go build ./...
       - name: go vet

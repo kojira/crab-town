@@ -56,10 +56,11 @@ test("phone input >= 16px (no focus zoom) and a send button big enough to tap", 
   assert.match(rule("body.narrow #talkForm"), /margin:auto 0 0/); // pinned to the bottom of the panel
 });
 
-test("keyboard up: the rows above the log fold away, the map shrinks, the log and input stay", () => {
+test("keyboard up: the rows above the log fold away, the map keeps its height, the log and input stay", () => {
   const fold = rule("body.narrow.kbup h1, body.narrow.kbup #bar, body.narrow.kbup #jumps, body.narrow.kbup #chatHead");
   assert.match(fold, /display:none/);
-  assert.match(rule("body.narrow.kbup #mapwrap"), /height:clamp\(/);
+  // focus / typing / blur must not resize the map (iPhone: it shrank on focus and came back on blur)
+  assert.doesNotMatch(css, /kbup[^{]*#(mapwrap|stage)\b[^{]*\{[^}]*height/);
   assert.doesNotMatch(css, /kbup[^{]*#(log|talkForm|talkText|talk)\b[^{]*\{[^}]*display:none/);
 });
 
@@ -70,4 +71,13 @@ test("appViewport: the visible part of the page, from visualViewport", () => {
   assert.deepEqual(Chat.appViewport(664, { height: 328.4, offsetTop: 40 }), { height: 328, top: 40 }); // scrolled under it
   assert.deepEqual(Chat.appViewport(664, { height: 700, offsetTop: -3 }), { height: 664, top: 0 }); // never taller than the window
   assert.deepEqual(Chat.appViewport(664, { height: 0 }), { height: 664, top: 0 });
+});
+
+test("viewportMoved: only a real change of the visible column re-lays out the page", () => {
+  const v = { height: 664, top: 0 };
+  assert.equal(Chat.viewportMoved(v, { height: 664, top: 0 }), false);
+  assert.equal(Chat.viewportMoved(v, { height: 665, top: 1 }), false); // keyboard animation jitter
+  assert.equal(Chat.viewportMoved(v, { height: 328, top: 0 }), true);  // keyboard up
+  assert.equal(Chat.viewportMoved(v, { height: 664, top: 40 }), true);
+  assert.equal(Chat.viewportMoved({ height: -1, top: -1 }, v), true);  // first call
 });

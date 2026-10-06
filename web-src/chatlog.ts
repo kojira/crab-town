@@ -68,6 +68,12 @@ const CrabChat = (() => {
     return { height: Math.round(Math.min(vv.height, innerH > 0 ? innerH : vv.height)), top: Math.max(0, Math.round(vv.offsetTop || 0)) };
   }
 
+  // Did the visible column move enough to re-lay out the page? Sub-2px jitter
+  // (iOS reports fractional heights while the keyboard animates) does not count.
+  function viewportMoved(prev: { height: number; top: number }, next: { height: number; top: number }, min = 2) {
+    return Math.abs(prev.height - next.height) >= min || Math.abs(prev.top - next.top) >= min;
+  }
+
   const doc = typeof document !== "undefined" ? document : null;
   const el = doc && doc.getElementById("log");
   // el / doc are null only under node --test, where nothing below is called
@@ -153,26 +159,40 @@ const CrabChat = (() => {
   const box = doc && doc.getElementById("chat");
   const input = doc && doc.getElementById("talkText");
   const coarse = typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+  // iOS fires visualViewport resize/scroll many times per gesture, and every
+  // write below re-lays out the page, which can fire them again (flicker).
+  // So: one update per frame (rAF), write only when the column moved by >= 2px,
+  // and ignore a pinch-zoomed viewport (scale != 1): there the visual viewport
+  // is the zoomed window, not the keyboard, and following it fights the zoom.
+  let last = { height: -1, top: -1 }, queued = false;
   function lift() {
     const b = doc!.body, narrow = b.classList.contains("narrow");
+    const zoomed = !!vv && Math.abs((vv.scale || 1) - 1) > 0.01;
     const v = appViewport(window.innerHeight, vv);
-    b.style.setProperty("--app-h", v.height + "px");
-    b.style.setProperty("--vv-top", v.top + "px");
-    if (vv) b.style.setProperty("--vv-h", Math.round(vv.height) + "px");
+    if (!zoomed && viewportMoved(last, v)) {
+      last = v;
+      b.style.setProperty("--app-h", v.height + "px");
+      b.style.setProperty("--vv-top", v.top + "px");
+    }
     const focused = !!input && doc!.activeElement === input;
     const on = narrow && focused && (coarse || keyboardInset(window.innerHeight, vv) > 0);
     if (b.classList.contains("kbup") !== on) {
       b.classList.toggle("kbup", on);
       if (on) logBox().scrollTop = logBox().scrollHeight;
     }
-    if (narrow && window.scrollY) window.scrollTo(0, 0); // iOS scrolls the page to show the input: the column is already there
+    if (narrow && !zoomed && window.scrollY) window.scrollTo(0, 0); // iOS scrolls the page to show the input: the column is already there
+  }
+  function schedule() {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => { queued = false; lift(); });
   }
   if (input && box) {
-    input.addEventListener("focus", () => { box.classList.add("focus"); box.classList.remove("closed"); if (toggle) { toggle.textContent = toggleLabel(false); toggle.setAttribute("aria-expanded", "true"); } logBox().scrollTop = logBox().scrollHeight; lift(); setTimeout(lift, 300); });
-    input.addEventListener("blur", () => { setTimeout(() => { box.classList.remove("focus"); lift(); }, 150); });
+    input.addEventListener("focus", () => { box.classList.add("focus"); box.classList.remove("closed"); if (toggle) { toggle.textContent = toggleLabel(false); toggle.setAttribute("aria-expanded", "true"); } logBox().scrollTop = logBox().scrollHeight; lift(); setTimeout(schedule, 300); });
+    input.addEventListener("blur", () => { setTimeout(() => { box.classList.remove("focus"); schedule(); }, 150); });
   }
-  if (doc) { lift(); window.addEventListener("resize", lift); }
-  if (vv && box) { vv.addEventListener("resize", lift); vv.addEventListener("scroll", lift); }
+  if (doc) { lift(); window.addEventListener("resize", schedule); }
+  if (vv && box) { vv.addEventListener("resize", schedule); vv.addEventListener("scroll", schedule); }
 
   // History across tabs: state events are ephemeral (kind 23411), relays keep
   // them for minutes at most, so the browser keeps the last talk/say/knock lines.
@@ -192,6 +212,6 @@ const CrabChat = (() => {
   function saveHistory(store: Pick<Storage, "setItem"> | null | undefined, list: HistItem[]) {
  try { store && store.setItem(HIST_KEY, JSON.stringify(list)); } catch { /* full / private mode */ } }
 
-  return { entry, resultText, add, system, error, setStatus, typing, keyboardInset, toggleLabel, keep, loadHistory, saveHistory, appViewport, HIST_KEY };
+  return { entry, resultText, add, system, error, setStatus, typing, keyboardInset, toggleLabel, keep, loadHistory, saveHistory, appViewport, viewportMoved, HIST_KEY };
 })();
 if (typeof module !== "undefined") module.exports = CrabChat;
