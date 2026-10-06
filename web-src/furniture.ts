@@ -1,12 +1,12 @@
 // crab-town viewer: multi-tile furniture drawn as dot art (1 tile = 16x16 dots).
 // Each painter gets d(x, y, w, h, color) in dots relative to the furniture's top-left.
-function dotPen(x0, y0) {
+function dotPen(x0: number, y0: number): DotPen {
   return (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(x0 + x * P, y0 + y * P, w * P, h * P); };
 }
 
 const WOOD = "#8a5a32", WOOD_D = "#5e3b1f", WOOD_L = "#b07a48";
 
-const FURNITURE = {
+const FURNITURE: Record<string, FurniturePainter> = {
   // 窓 (4x1, set into the top wall): wooden frame, panes of sky with clouds, curtains
   window(d, W) {
     d(0, 0, W, 16, WOOD_D);
@@ -90,7 +90,7 @@ const FURNITURE = {
   // コンロ (2x1): black hob with four burners, two glowing
   stove(d, W) {
     d(0, 0, W, 16, "#2a2a2e"); d(0, 0, W, 1, "#55555c");
-    const ring = (x, y, hot) => {
+    const ring = (x: number, y: number, hot: boolean) => {
       d(x, y, 8, 6, hot ? "#e0402a" : "#4a4a52");
       d(x + 2, y + 2, 4, 2, hot ? "#ff9a3c" : "#2a2a2e");
     };
@@ -107,7 +107,7 @@ const FURNITURE = {
   // ダイニングテーブル (3x2): wooden top, placemats, plates, a vase
   table(d, W, H) {
     d(1, 2, W - 2, H - 4, WOOD); d(1, 2, W - 2, 1, WOOD_L); d(1, H - 3, W - 2, 1, WOOD_D);
-    const plate = (x, y) => { d(x, y, 8, 6, "#e8d8b0"); d(x + 1, y + 1, 6, 4, "#fff"); d(x + 3, y + 2, 2, 2, "#e6a23c"); };
+    const plate = (x: number, y: number) => { d(x, y, 8, 6, "#e8d8b0"); d(x + 1, y + 1, 6, 4, "#fff"); d(x + 3, y + 2, 2, 2, "#e6a23c"); };
     plate(4, 5); plate(W - 12, 5); plate(4, H - 13); plate(W - 12, H - 13);
     d(W / 2 - 2, H / 2 - 4, 4, 6, "#4aa3c8"); d(W / 2 - 3, H / 2 - 7, 2, 3, "#f07a9a"); d(W / 2 + 1, H / 2 - 7, 2, 3, "#ffd84a");
   },
@@ -164,14 +164,14 @@ const FURNITURE = {
   },
 };
 
-function furnitureSize(f) {
+function furnitureSize(f: Furniture): Size {
   return { w: Math.max(1, (f.size && f.size.w) || 1), h: Math.max(1, (f.size && f.size.h) || 1) };
 }
-function occupies(f, x, y) {
+function occupies(f: Furniture, x: number, y: number) {
   const s = furnitureSize(f);
   return x >= f.pos.x && y >= f.pos.y && x < f.pos.x + s.w && y < f.pos.y + s.h;
 }
-function drawFurniture(f) {
+function drawFurniture(f: Furniture) {
   const s = furnitureSize(f), x0 = f.pos.x * T, y0 = f.pos.y * T;
   const paint = FURNITURE[f.kind];
   if (!paint) { ctx.fillStyle = "#ccc"; ctx.fillRect(x0 + 2, y0 + 2, s.w * T - 4, s.h * T - 4); return; }

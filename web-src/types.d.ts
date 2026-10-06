@@ -63,3 +63,7 @@ interface Window {
 }
 // CommonJS export for `node --test` (the pure parts of chatui / chatlog / viewport / avatar)
 declare var module: { exports: unknown } | undefined;
+
+// ---- Nostr ----
+interface NostrEvent { id: string; pubkey: string; sig: string; kind: number; created_at: number; tags: string[][]; content: string }
+type VerifyFn = (ev: NostrEvent) => boolean;

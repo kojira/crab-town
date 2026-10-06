@@ -3,21 +3,22 @@
 // Uses the globals of sprites.js (cv, T, rooms, actors) and CrabViewport.
 const CrabView = (() => {
   const V = CrabViewport;
-  const stage = document.getElementById("stage");
-  const mini = document.getElementById("minimap"), mctx = mini.getContext("2d");
-  const jumps = document.getElementById("jumps");
-  const st = { mode: "fit", tile: T, focused: false, self: null, jumpKey: "", drag: null, justDragged: false, mScale: 2 };
+  const stage = document.getElementById("stage")!;
+  const mini = document.getElementById("minimap") as HTMLCanvasElement, mctx = mini.getContext("2d")!;
+  const jumps = document.getElementById("jumps")!;
+  interface Drag { id: number; x: number; y: number; sx: number; sy: number; moved: boolean }
+  const st: { mode: "fit" | "scroll"; tile: number; focused: boolean; self: string | null; jumpKey: string; drag: Drag | null; justDragged: boolean; mScale: number } = { mode: "fit", tile: T, focused: false, self: null, jumpKey: "", drag: null, justDragged: false, mScale: 2 };
 
   const room = () => Object.values(rooms)[0];
-  const townW = () => (room() ? room().width : cv.width / T);
-  const townH = () => (room() ? room().height : cv.height / T);
+  const townW = () => room()?.width ?? cv.width / T;
+  const townH = () => room()?.height ?? cv.height / T;
   const content = () => ({ w: townW() * st.tile, h: townH() * st.tile });
   const scrollPos = () => ({ x: stage.scrollLeft, y: stage.scrollTop });
-  function scrollTo(o) {
+  function scrollTo(o: Pos) {
     const c = content(), v = V.clampView(o.x, o.y, stage.clientWidth, stage.clientHeight, c.w, c.h);
     stage.scrollLeft = Math.max(0, v.x); stage.scrollTop = Math.max(0, v.y);
   }
-  function centerOn(tx, ty) {
+  function centerOn(tx: number, ty: number) {
     const c = content();
     scrollTo(V.centerOn(tx, ty, st.tile, stage.clientWidth, stage.clientHeight, c.w, c.h));
   }
@@ -80,7 +81,7 @@ const CrabView = (() => {
       return b;
     }));
   }
-  function setSelf(id) { st.self = id || null; st.focused = false; onWorld(); }
+  function setSelf(id: string | null | undefined) { st.self = id || null; st.focused = false; onWorld(); }
 
   // Drag (mouse and touch) scrolls the stage; a drag never counts as a click.
   stage.addEventListener("pointerdown", (e) => {
@@ -95,7 +96,8 @@ const CrabView = (() => {
     if (!d.moved) { d.moved = true; stage.setPointerCapture(e.pointerId); stage.classList.add("dragging"); }
     stage.scrollLeft = d.sx - dx; stage.scrollTop = d.sy - dy;
   });
-  const endDrag = (e) => {
+  const endDrag = (e: PointerEvent) => {
+
     const d = st.drag;
     if (!d || d.id !== e.pointerId) return;
     st.drag = null; stage.classList.remove("dragging");

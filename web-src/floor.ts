@@ -1,6 +1,6 @@
 // crab-town viewer: floors (one texture per zone), walls and doors.
 // Floor painters draw one tile at (px, py); d(x, y, w, h, c) is in dots.
-const FLOORS = {
+const FLOORS: Record<string, FloorPainter> = {
   // 玄関: grey stone slabs
   stone(d, x, y) {
     d(0, 0, 16, 16, (x + y) % 2 ? "#8c8c88" : "#80807c");
@@ -23,7 +23,7 @@ const FLOORS = {
   },
   // リビング: wood floor with a big patterned rug in the middle
   rug(d, x, y, z) {
-    FLOORS.wood(d, x, y);
+    FLOORS.wood(d, x, y, z);
     const r = z.rect, inRug = x > r.x && x < r.x + r.w - 2 && y > r.y && y < r.y + r.h - 1;
     if (!inRug) return;
     d(0, 0, 16, 16, "#b0413e");
@@ -57,7 +57,7 @@ const FLOORS = {
   },
 };
 
-function drawFloor(room) {
+function drawFloor(room: Room) {
   ctx.fillStyle = "#1b1d23"; ctx.fillRect(0, 0, room.width * T, room.height * T);
   for (const z of room.zones || []) {
     const paint = FLOORS[z.floor] || FLOORS.wood;
@@ -66,14 +66,14 @@ function drawFloor(room) {
   }
 }
 
-function isDoor(room, x, y) { return (room.doors || []).some(d => d.x === x && d.y === y); }
-function isWall(room, x, y) {
+function isDoor(room: Room, x: number, y: number) { return (room.doors || []).some(d => d.x === x && d.y === y); }
+function isWall(room: Room, x: number, y: number) {
   if (isDoor(room, x, y)) return false;
   return (room.walls || []).some(w => x >= w.x && y >= w.y && x < w.x + w.w && y < w.y + w.h);
 }
 
 // Walls: cream plaster with a dark top edge; a shaded base where floor meets the wall.
-function drawWalls(room) {
+function drawWalls(room: Room) {
   for (let y = 0; y < room.height; y++) for (let x = 0; x < room.width; x++) {
     const d = dotPen(x * T, y * T);
     if (isDoor(room, x, y)) {
@@ -93,7 +93,7 @@ function drawWalls(room) {
 }
 
 // Zones the viewer may not see are closed with the house's curtain (town.js).
-function drawHiddenZones(room) {
+function drawHiddenZones(room: Room) {
   for (const id of room.hidden_zones || []) {
     const z = (room.zones || []).find(z => z.id === id);
     if (z) drawCurtain(z);

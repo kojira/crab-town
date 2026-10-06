@@ -27,10 +27,10 @@ Object.assign(FLOORS, {
       d(gx, gy + 1, 1, 2, "#4f9a40"); d(gx + 1, gy, 1, 3, "#86cc6e");
     }
   },
-});
+} satisfies Record<string, FloorPainter>);
 
 // Small heart, 5x4 dots.
-function heart(d, x, y, c) { d(x, y, 2, 1, c); d(x + 3, y, 2, 1, c); d(x, y + 1, 5, 1, c); d(x + 1, y + 2, 3, 1, c); d(x + 2, y + 3, 1, 1, c); }
+function heart(d: DotPen, x: number, y: number, c: string) { d(x, y, 2, 1, c); d(x + 3, y, 2, 1, c); d(x, y + 1, 5, 1, c); d(x + 1, y + 2, 3, 1, c); d(x + 2, y + 3, 1, 1, c); }
 
 Object.assign(FURNITURE, {
   // ピンクのソファ (4x2): same build as the sofa, pink with heart cushions
@@ -123,10 +123,10 @@ Object.assign(FURNITURE, {
     d(7, 9, 2, 7, "#5e3b1f"); d(3, 2, 10, 8, "#d04040"); d(3, 2, 10, 2, "#e86060");
     d(5, 5, 6, 1, "#222"); d(12, 3, 1, 3, "#ffd84a");
   },
-});
+} satisfies Record<string, FurniturePainter>);
 
 // ---- らぼみ: gal, long pink hair with a bow, gold hoop earrings, lilac hoodie ----
-const LABOMI_PAL = {
+const LABOMI_PAL: Record<string, string> = {
   H:"#ff8fbf", R:"#ff4f8b", S:"#f8d6b8", E:"#3a2040", W:"#ffffff", M:"#e0607a",
   G:"#ffd84a", J:"#c8a8ff", K:"#f4f0ff", B:"#ff4f8b",
 };
@@ -149,23 +149,23 @@ const LABOMI_LEGS = [
   [ "....SSS.SSS.....", "....SSS.SSS.....", "...BBB...BBB...." ],
   [ "....SSS..SSS....", "...SSS....SS....", "...BB.....BBB..." ],
 ];
-const SPRITES = {
+const SPRITES: Record<string, Sprite> = {
   labomi: { body: LABOMI_BODY, legs: LABOMI_LEGS, pal: LABOMI_PAL },
   nostarou: { body: NOSTAROU_BODY, legs: NOSTAROU_LEGS, pal: NOSTAROU_PAL },
 };
-function spriteFor(a) { return SPRITES[a.id] || SPRITES.nostarou; }
+function spriteFor(a: Actor): Sprite { return SPRITES[a.id] || SPRITES.nostarou; }
 
 // ---- per-house curtains (暗幕) ----------------------------------------------
 // A zone the viewer may not see is covered by a drawn curtain in its house's
 // colour (labomi: rose velvet, nostarou: navy), so whose room is closed shows
 // without a label. Opaque: nothing inside shows through.
-const CURTAINS = {
+const CURTAINS: Record<string, typeof CURTAIN_DEFAULT> = {
   "labomi-house": { base: "#7a2f52", fold: "#5e2240", hi: "#a04870", rod: "#e0c070" },
   "nostarou-house": { base: "#2c3560", fold: "#1e2546", hi: "#45508a", rod: "#ffd84a" },
 };
 const CURTAIN_DEFAULT = { base: "#33333d", fold: "#24242c", hi: "#4a4a56", rod: "#c8b060" };
-function drawCurtain(z) {
-  const c = CURTAINS[z.house] || CURTAIN_DEFAULT;
+function drawCurtain(z: Zone) {
+  const c = (z.house && CURTAINS[z.house]) || CURTAIN_DEFAULT;
   const x0 = z.rect.x * T, y0 = z.rect.y * T, w = z.rect.w * T, h = z.rect.h * T;
   ctx.fillStyle = c.base; ctx.fillRect(x0, y0, w, h);
   for (let x = 0; x < w; x += 8 * P) {                  // vertical folds

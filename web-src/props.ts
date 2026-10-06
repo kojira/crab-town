@@ -122,7 +122,7 @@ Object.assign(FURNITURE, {
     d(1, 2, 14, 12, "#7ac0a8"); d(2, 3, 12, 10, "#9ad8c0");
     for (let x = 3; x < 13; x += 3) d(x, 4, 1, 8, "#7ac0a8");
   },
-});
+} satisfies Record<string, FurniturePainter>);
 
 // Floors for the water area.
 Object.assign(FLOORS, {
@@ -137,11 +137,11 @@ Object.assign(FLOORS, {
     d(0, 0, 16, 1, "#d4c6a6"); d(0, 0, 1, 16, "#d4c6a6");
     if ((x + y) % 2) d(6, 6, 4, 4, "#d8c8a4");
   },
-});
+} satisfies Record<string, FloorPainter>);
 
 // In-use lamp on the door of an occupied private zone (toilet / bath): red when
 // in use, green when free. Only the flag is known to the viewer, never who.
-function drawUseLamps(room) {
+function drawUseLamps(room: Room) {
   const inUse = new Set(room.in_use || []);
   for (const z of room.zones || []) {
     if (!z.private) continue;
@@ -152,7 +152,7 @@ function drawUseLamps(room) {
     if (on) { ctx.fillStyle = "rgba(255,60,60,0.25)"; ctx.fillRect(door.x * T - 4, door.y * T - 4, T + 8, T + 8); }
   }
 }
-function touches(r, p) {
+function touches(r: Rect, p: Pos) {
   return [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => {
     const x = p.x + dx, y = p.y + dy;
     return x >= r.x && y >= r.y && x < r.x + r.w && y < r.y + r.h;
