@@ -4,7 +4,7 @@ function updateStatus() {
     .map(a => a.hidden ? `${a.name}: (見えない場所にいる)` : `${a.name}: ${a.state}${a.using ? " ("+a.using+")" : ""} @ ${a.pos.x},${a.pos.y}`).join(" / ");
 }
 
-function log(s) {
+function log(s: string) {
   logEl.textContent = (new Date().toLocaleTimeString() + " " + s + "\n" + logEl.textContent).slice(0, 4000);
 }
 
@@ -15,7 +15,8 @@ function viewerQuery() {
   return v ? "?token=" + encodeURIComponent(v) : "";
 }
 
-function inHidden(r, p) {
+function inHidden(r: Room, p: Pos) {
+
   return !!r && (r.hidden_zones || []).some(id => {
     const z = (r.zones || []).find(z => z.id === id);
     return z && p && p.x >= z.rect.x && p.y >= z.rect.y && p.x < z.rect.x + z.rect.w && p.y < z.rect.y + z.rect.h;

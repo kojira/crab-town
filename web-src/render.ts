@@ -1,5 +1,5 @@
 // crab-town viewer: canvas rendering (floor, furniture, actors, tooltips).
-function drawSprite(rows, pal, x0, y0, flip) {
+function drawSprite(rows: string[], pal: Record<string, string>, x0: number, y0: number, flip: boolean) {
   for (let y = 0; y < rows.length; y++) {
     const row = rows[y];
     for (let x = 0; x < row.length; x++) {
@@ -13,11 +13,17 @@ function drawSprite(rows, pal, x0, y0, flip) {
 }
 
 // ---- labels -----------------------------------------------------------------
+// LABEL_SCALE (> 1) is set by mobile.js when tiles are shown smaller than native.
+function labelScale(): number {
+  const s = typeof window !== "undefined" ? window.LABEL_SCALE : undefined;
+  return s !== undefined && s > 1 ? s : 1;
+}
+
 // Shrink the font until text fits maxW; returns the px size used. Sizes are
 // canvas px at the native tile size; LABEL_SCALE (set by mobile.js when tiles
 // are shown smaller than native) enlarges them so they stay readable.
-function fitFont(text, maxW, maxPx, minPx) {
-  const k = typeof window !== "undefined" && window.LABEL_SCALE > 1 ? window.LABEL_SCALE : 1;
+function fitFont(text: string, maxW: number, maxPx: number, minPx: number) {
+  const k = labelScale();
   maxW *= k; maxPx = Math.round(maxPx * k); minPx = Math.round(minPx * k);
   for (let px = maxPx; px > minPx; px--) {
     ctx.font = `bold ${px}px sans-serif`;
@@ -29,8 +35,8 @@ function fitFont(text, maxW, maxPx, minPx) {
 
 // Furniture label: not drawn by default (sprites must be readable on their own).
 // Shown only as a hover tooltip, placed above/below the tile and clamped to the canvas.
-let hover = null; // furniture under the mouse
-function drawTooltip(f) {
+let hover: Furniture | null = null; // furniture under the mouse
+function drawTooltip(f: Furniture) {
   const s = furnitureSize(f);
   const px = fitFont(f.label, T * 5, 13, 9);
   const w = Math.ceil(ctx.measureText(f.label).width) + 8, h = px + 6;
@@ -55,7 +61,7 @@ cv.addEventListener("mousemove", (e) => {
 cv.addEventListener("mouseleave", () => { hover = null; });
 
 // Name tag below the actor (above it near the bottom edge), clamped to the canvas.
-function drawNameTag(text, cx, topY, botY) {
+function drawNameTag(text: string, cx: number, topY: number, botY: number) {
   const px = fitFont(text, T * 3, 11, 8);
   const w = Math.ceil(ctx.measureText(text).width) + 6, h = px + 4;
   const x = Math.max(0, Math.min(cv.width - w, Math.round(cx - w / 2)));
@@ -71,8 +77,9 @@ function drawNameTag(text, cx, topY, botY) {
 }
 
 // Small speech-bubble state icon in the actor tile's top-right corner.
-function drawStateIcon(state, x0, y0) {
-  const icon = { talking:"...", working:"#", away:"z" }[state];
+function drawStateIcon(state: string, x0: number, y0: number) {
+  const icons: Record<string, string> = { talking:"...", working:"#", away:"z" };
+  const icon = icons[state];
   if (!icon) return;
   const w = 12, h = 9, x = x0 + T - w, y = y0;
   ctx.fillStyle = "#fff"; ctx.fillRect(x, y, w, h);
@@ -84,11 +91,11 @@ function drawStateIcon(state, x0, y0) {
 }
 
 // ---- drawing ----------------------------------------------------------------
-function lerpPos(v, now) {
+function lerpPos(v: ActorView, now: number): Pos {
   const t = Math.min(1, (now - v.start) / STEP_MS);
   return { x: v.from.x + (v.to.x - v.from.x) * t, y: v.from.y + (v.to.y - v.from.y) * t };
 }
-function actorView(a, now) {
+function actorView(a: Actor, now: number): ActorView {
   let v = view[a.id];
   if (!v) v = view[a.id] = { from: { ...a.pos }, to: { ...a.pos }, start: now, flip: false, frame: 0 };
   if (v.to.x !== a.pos.x || v.to.y !== a.pos.y) {
@@ -102,14 +109,14 @@ function actorView(a, now) {
 // Speech bubbles from extgate say events (display only). The text wraps over
 // several lines and stays longer the longer it is (CrabTalk.speechMs).
 const SPEECH_MS = 6000; // the shortest a bubble stays
-const speech = {}; // actor id -> {text, until}
-function drawSpeech(a, x0, y0, now) {
+const speech: Record<string, { text: string; until: number }> = {}; // actor id -> {text, until}
+function drawSpeech(a: Actor, x0: number, y0: number, now: number) {
   const s = speech[a.id];
   if (!s || now > s.until) { delete speech[a.id]; return; }
-  const k = typeof window !== "undefined" && window.LABEL_SCALE > 1 ? window.LABEL_SCALE : 1;
+  const k = labelScale();
   const px = Math.round(18 * k), maxW = Math.min(T * 11 * k, cv.width - 12);
   ctx.font = `bold ${px}px sans-serif`;
-  const lines = CrabTalk.wrap(s.text, maxW, (t) => ctx.measureText(t).width); // whole text, never cut
+  const lines = CrabTalk.wrap(s.text, maxW, (t: string) => ctx.measureText(t).width); // whole text, never cut
   const lh = Math.round(px * 1.3);
   const w = Math.ceil(Math.max(...lines.map(l => ctx.measureText(l).width))) + 12, h = lines.length * lh + 8;
   const x = Math.max(0, Math.min(cv.width - w, Math.round(x0 + T / 2 - w / 2)));
@@ -122,23 +129,23 @@ function drawSpeech(a, x0, y0, now) {
 }
 
 // Sitting: the actor uses a sofa (it stands on the sofa's seat tile).
-const SIT_KINDS = { sofa: 1, pinksofa: 1, chair: 1 };
+const SIT_KINDS: Record<string, number> = { sofa: 1, pinksofa: 1, chair: 1 };
 const SIT_LEGS = ["..LLLLLLLLLL....", "..BB......BB...."];
-function isSitting(a) {
+function isSitting(a: Actor) {
   if (!a.using) return false;
   const r = rooms[a.room], f = r && r.furniture.find(x => x.id === a.using);
   return !!(f && SIT_KINDS[f.kind]);
 }
 
 // Lying: the actor uses a bed (it is on the bed's seat tile).
-const LIE_KINDS = { bed: 1, pinkbed: 1, guestbed: 1 };
-function isLying(a) {
+const LIE_KINDS: Record<string, number> = { bed: 1, pinkbed: 1, guestbed: 1 };
+function isLying(a: Actor) {
   if (!a.using) return false;
   const r = rooms[a.room], f = r && r.furniture.find(x => x.id === a.using);
   return !!(f && LIE_KINDS[f.kind]);
 }
 
-function drawActor(a, now) {
+function drawActor(a: Actor, now: number) {
   const v = actorView(a, now);
   const p = lerpPos(v, now);
   const moving = p.x !== v.to.x || p.y !== v.to.y || !!a.target;

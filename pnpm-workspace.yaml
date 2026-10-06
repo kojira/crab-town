@@ -1,0 +1,4 @@
+minimumReleaseAge: 10080
+# esbuild ships its binary as an optional per-platform package; its postinstall is not needed
+allowBuilds:
+  esbuild: false
