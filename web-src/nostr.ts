@@ -301,6 +301,7 @@ $("talkForm").onsubmit = (e) => {
 
   if (!text) return;
   if ([...text].length > 280) { CrabChat.error("talk: 280文字まで"); return; }
+  talkIn.value = ""; // clear on send: the line is in the log (retry from there); waiting for the town's result left it in the box
   talk(text);
 };
 

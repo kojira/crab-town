@@ -350,6 +350,7 @@ $("talkForm").onsubmit = (e) => {
     CrabChat.error("talk: 280\u6587\u5B57\u307E\u3067");
     return;
   }
+  talkIn.value = "";
   talk(text);
 };
 const BLOSSOM = qs.get("blossom") || cfg.blossom || "https://blossom.primal.net";
