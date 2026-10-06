@@ -51,6 +51,9 @@ const CrabChat = (() => {
     if (!vv2 || !(vv2.height > 0)) return { height: Math.round(innerH), top: 0 };
     return { height: Math.round(Math.min(vv2.height, innerH > 0 ? innerH : vv2.height)), top: Math.max(0, Math.round(vv2.offsetTop || 0)) };
   }
+  function viewportMoved(prev, next, min = 2) {
+    return Math.abs(prev.height - next.height) >= min || Math.abs(prev.top - next.top) >= min;
+  }
   const doc = typeof document !== "undefined" ? document : null;
   const el = doc && doc.getElementById("log");
   function nearBottom() {
@@ -153,19 +156,31 @@ const CrabChat = (() => {
   const box = doc && doc.getElementById("chat");
   const input = doc && doc.getElementById("talkText");
   const coarse = typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+  let last = { height: -1, top: -1 }, queued = false;
   function lift() {
     const b = doc.body, narrow = b.classList.contains("narrow");
+    const zoomed = !!vv && Math.abs((vv.scale || 1) - 1) > 0.01;
     const v = appViewport(window.innerHeight, vv);
-    b.style.setProperty("--app-h", v.height + "px");
-    b.style.setProperty("--vv-top", v.top + "px");
-    if (vv) b.style.setProperty("--vv-h", Math.round(vv.height) + "px");
+    if (!zoomed && viewportMoved(last, v)) {
+      last = v;
+      b.style.setProperty("--app-h", v.height + "px");
+      b.style.setProperty("--vv-top", v.top + "px");
+    }
     const focused = !!input && doc.activeElement === input;
     const on = narrow && focused && (coarse || keyboardInset(window.innerHeight, vv) > 0);
     if (b.classList.contains("kbup") !== on) {
       b.classList.toggle("kbup", on);
       if (on) logBox().scrollTop = logBox().scrollHeight;
     }
-    if (narrow && window.scrollY) window.scrollTo(0, 0);
+    if (narrow && !zoomed && window.scrollY) window.scrollTo(0, 0);
+  }
+  function schedule() {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => {
+      queued = false;
+      lift();
+    });
   }
   if (input && box) {
     input.addEventListener("focus", () => {
@@ -177,22 +192,22 @@ const CrabChat = (() => {
       }
       logBox().scrollTop = logBox().scrollHeight;
       lift();
-      setTimeout(lift, 300);
+      setTimeout(schedule, 300);
     });
     input.addEventListener("blur", () => {
       setTimeout(() => {
         box.classList.remove("focus");
-        lift();
+        schedule();
       }, 150);
     });
   }
   if (doc) {
     lift();
-    window.addEventListener("resize", lift);
+    window.addEventListener("resize", schedule);
   }
   if (vv && box) {
-    vv.addEventListener("resize", lift);
-    vv.addEventListener("scroll", lift);
+    vv.addEventListener("resize", schedule);
+    vv.addEventListener("scroll", schedule);
   }
   const HIST_KEY = "crab-town-chat-v1", HIST_MAX = 200;
   const HIST_TYPES = { talk: 1, say: 1, knock: 1 };
@@ -215,6 +230,6 @@ const CrabChat = (() => {
     } catch {
     }
   }
-  return { entry, resultText, add, system, error, setStatus, typing, keyboardInset, toggleLabel, keep, loadHistory, saveHistory, appViewport, HIST_KEY };
+  return { entry, resultText, add, system, error, setStatus, typing, keyboardInset, toggleLabel, keep, loadHistory, saveHistory, appViewport, viewportMoved, HIST_KEY };
 })();
 if (typeof module !== "undefined") module.exports = CrabChat;

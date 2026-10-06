@@ -85,9 +85,9 @@
   body.narrow #log { font-size:20px; line-height:1.5; height:100%; max-height:none; box-sizing:border-box; padding:0 10px 8px; }
   body.narrow #log .t { font-size:15px; } body.narrow #log .system { font-size:15px; }
   body.narrow #chat.closed #logwrap, body.narrow #chat.closed #newLines { display:none; }
-  /* kbup = typing with the keyboard up: the header rows fold away and the map gives up height, never the log or the input */
+  /* kbup = typing with the keyboard up: the header rows fold away, never the log or the input.
+     The map keeps its height (focus / typing / blur must not resize it) */
   body.narrow.kbup h1, body.narrow.kbup #bar, body.narrow.kbup #jumps, body.narrow.kbup #chatHead { display:none; }
-  body.narrow.kbup #mapwrap { height:clamp(64px, 24%, 200px); }
   body.narrow #typing, body.narrow #talkHint { padding:0 10px; font-size:14px; } /* the input stays usable when closed */
   body.narrow #talkForm { margin:auto 0 0; padding:6px 10px calc(8px + env(safe-area-inset-bottom, 0px)); border-top:1px solid #333; align-items:stretch; }
   body.narrow #talkText { max-width:none; font-size:17px; padding:8px 10px; min-height:44px; box-sizing:border-box; }
