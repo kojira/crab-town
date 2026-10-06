@@ -16,6 +16,7 @@ let layout: C.Layout = C.layoutFor(innerWidth);
 let cam: C.Cam = { x: 0, y: 0 };
 let panned = false;      // the user dragged away from "me": stop following
 let lift = 0;            // current keyboard lift of the input bar (px)
+let band: C.Band | null = null; // rule 7: the visible part of the map while the keyboard is up (map-local px)
 let follow = true;       // chat log follows new lines
 let unread = 0;
 
@@ -65,6 +66,8 @@ function recenter(force: boolean) {
   const p = a && !a.hidden ? a.pos : C.defaultFocus(rm);
   const v = viewSize();
   cam = C.centerOn(p, tile(), v.w, v.h, rm);
+  // rule 7: keyboard up -> keep me between the top of visualViewport and the peek / bar
+  if (band && a && !a.hidden) cam = C.camInBand(cam, a.pos, tile(), band);
   $("recenter").hidden = true;
 }
 
@@ -104,13 +107,13 @@ function draw() {
     if (a.hidden || a.room !== rm.id) continue;
     const cx = (a.pos.x + 0.5) * t, cy = (a.pos.y + 0.5) * t;
     ctx.fillStyle = a.id === me ? "#ffd84a" : "#f2f2f2";
-    ctx.beginPath(); ctx.arc(cx, cy, t * 0.36, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = "#222"; ctx.lineWidth = 2; ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx, cy, t * C.ACTOR_R, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#222"; ctx.lineWidth = C.ACTOR_STROKE; ctx.stroke();
     const tag = C.nameTag(a.name, C.labelOf(st, a.id));
     ctx.font = `${C.STEPS[step].tag}px sans-serif`; ctx.textAlign = "center";
     const w = ctx.measureText(tag).width + 8;
-    ctx.fillStyle = "rgba(0,0,0,.65)"; ctx.fillRect(cx - w / 2, cy - t * 0.9 - 12, w, 16);
-    ctx.fillStyle = "#fff"; ctx.fillText(tag, cx, cy - t * 0.9);
+    ctx.fillStyle = "rgba(0,0,0,.65)"; ctx.fillRect(cx - w / 2, cy - t * C.TAG_RISE - C.TAG_ASC, w, C.TAG_H);
+    ctx.fillStyle = "#fff"; ctx.fillText(tag, cx, cy - t * C.TAG_RISE);
   }
   ctx.restore();
   drawMini(rm);
@@ -273,12 +276,26 @@ function placePeek() {
     { height: vv.height, offsetTop: vv.offsetTop, scale: vv.scale },
     $("inputbar").offsetHeight, $("chat").getBoundingClientRect().top, parseFloat(lcs.paddingTop),
     parseFloat(pcs.lineHeight), parseFloat(pcs.paddingTop), lift) : null;
-  if (!p) { peek.hidden = true; peek.replaceChildren(); return; }
-  const src = Array.from(log.querySelectorAll(".line")).slice(-p.lines);
-  if (src.length === 0) { peek.hidden = true; peek.replaceChildren(); return; }
-  peek.replaceChildren(...src.map((l) => l.cloneNode(true)));
-  peek.style.top = `${p.top + (p.lines - src.length) * parseFloat(pcs.lineHeight)}px`;
-  peek.hidden = false;
+  const src = p ? Array.from(log.querySelectorAll(".line")).slice(-p.lines) : [];
+  if (!p || src.length === 0) { peek.hidden = true; peek.replaceChildren(); }
+  else {
+    peek.replaceChildren(...src.map((l) => l.cloneNode(true)));
+    peek.style.top = `${p.top + (p.lines - src.length) * parseFloat(pcs.lineHeight)}px`;
+    peek.hidden = false;
+  }
+  placeBand();
+}
+// rule 7: measure what still shows of the map (vv top .. top of the peek, or of
+// the lifted bar when there is no peek) and recentre into it; null = keyboard down
+function placeBand() {
+  const vv = window.visualViewport;
+  if (!lift || !vv || vv.scale !== 1) band = null;
+  else {
+    const m = $("mapwrap").getBoundingClientRect(), peek = $("peek");
+    const cover = (peek.hidden ? $("inputbar") : peek).getBoundingClientRect().top;
+    band = C.keyboardBand(vv.offsetTop, m.top, m.bottom, cover);
+  }
+  if (!panned) recenter(false);
 }
 // rule 5: room = the log's box (= #chat, never resized) minus its top padding
 function padChat() {
@@ -321,6 +338,12 @@ addEventListener("resize", () => { if (innerWidth !== lastW) { lastW = innerWidt
 (window as any).__townNext = {
   state: st,
   tileToScreen: (x: number, y: number) => ({ x: (x + 0.5) * tile() - cam.x, y: (y + 0.5) * tile() - cam.y }),
+  // the vertical extent of an actor's drawing on the map canvas (map-local px), from the same numbers draw() uses
+  actorSpan: (id: string) => {
+    const a = st.actors[id]; if (!a || a.hidden) return null;
+    const t = tile(), b = C.actorBox(t), cy = (a.pos.y + 0.5) * t - cam.y;
+    return { top: cy - b.above, bottom: cy + b.below };
+  },
 };
 applyLayout();
 void connect();
