@@ -22,7 +22,8 @@ const CrabChat = (() => {
       const self = !!ctx.selfGuestId && ev.by === ctx.selfGuestId;
       const kind = self ? "self" : ev.role === "owner" ? "owner" : "guest";
       const who = self ? "\u3042\u306A\u305F" : kind === "owner" ? "\u30AA\u30FC\u30CA\u30FC" : "\u6765\u5BA2 " + short(ev.by);
-      return { kind, who, to: ev.to || "", text: ev.message || "", at, dim: !self && !!ctx.selfGuestId };
+      const image = ev.role === "owner" && ev.image ? ev.image : void 0;
+      return { kind, who, to: ev.to || "", text: ev.message || "", at, dim: !self && !!ctx.selfGuestId, image };
     }
     if (ev.type === "knock") {
       const h = (ctx.houses || []).find((x) => x.id === ev.house);
@@ -83,6 +84,13 @@ const CrabChat = (() => {
     m.className = "msg";
     m.textContent = (e.to ? "\u2192 " + e.to + ": " : "") + (e.text || "");
     row.append(t, " ", w, " ", m);
+    const pic = e.image && typeof CrabUpload !== "undefined" ? CrabUpload.imageNode(document, e.image) : null;
+    if (pic) {
+      row.append(pic);
+      pic.firstElementChild.addEventListener("load", () => {
+        if (stick) el.scrollTop = el.scrollHeight;
+      });
+    }
     el.append(row);
     while (el.childElementCount > MAX_LINES) el.firstElementChild.remove();
     if (stick) el.scrollTop = el.scrollHeight;

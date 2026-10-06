@@ -8,13 +8,13 @@ const CrabTalk = (() => {
   // town answers ok (or echoes the talk), "送れなかった" otherwise.
   type TalkStatus = "sending" | "delivered" | "failed";
   // one talk in the outbox; echoed = the town's talk echo already matched it
-  interface OutItem { key: number; text: string; status: TalkStatus; eventId: string; error: string; echoed?: boolean }
+  interface OutItem { key: number; text: string; status: TalkStatus; eventId: string; error: string; echoed?: boolean; image?: string }
   const STATUS_TEXT: Record<TalkStatus, string> = { sending: "送信中…", delivered: "届いた", failed: "送れなかった" };
   function outbox() {
     const items: OutItem[] = []; let seq = 0;
     return {
       items,
-      add(text: string): OutItem { const it: OutItem = { key: ++seq, text, status: "sending", eventId: "", error: "" }; items.push(it); return it; },
+      add(text: string, image?: string): OutItem { const it: OutItem = { key: ++seq, text, status: "sending", eventId: "", error: "", image }; items.push(it); return it; },
       // after publishing: n relays took the event. 0 = nothing left the page.
       sent(it: OutItem, eventId: string | undefined, n: number) {
         it.eventId = eventId || "";
@@ -30,8 +30,8 @@ const CrabTalk = (() => {
         return it;
       },
       // the town echoing a talk event by us with this text: it arrived
-      echo(text: string): OutItem | null {
-        const it = items.find(x => x.text === text && x.status !== "failed" && !x.echoed);
+      echo(text: string, image?: string): OutItem | null {
+        const it = items.find(x => x.text === text && (x.image || "") === (image || "") && x.status !== "failed" && !x.echoed);
         if (!it) return null;
         it.echoed = true; it.status = "delivered";
         return it;

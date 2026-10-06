@@ -31,7 +31,7 @@ interface ActorMsg extends MsgMeta { type: "actor"; actor?: Actor }
 interface InteractMsg extends MsgMeta { type: "interact"; actor: Actor; furniture: Furniture }
 interface OccupancyMsg extends MsgMeta { type: "occupancy"; room: string; in_use?: string[]; hidden_zones?: string[] }
 interface SayMsg extends MsgMeta { type: "say"; actor?: Actor; message?: string; reply_to?: string }
-interface TalkMsg extends MsgMeta { type: "talk"; by?: string; role?: string; to?: string; message?: string }
+interface TalkMsg extends MsgMeta { type: "talk"; by?: string; role?: string; to?: string; message?: string; image?: string }
 interface KnockMsg extends MsgMeta { type: "knock"; by?: string; room?: string; house?: string; message?: string }
 interface ResultMsg extends MsgMeta { type: "result"; cmd: string; ok: boolean; error?: string; role?: string; p?: string; e?: string }
 type WorldMsg = SnapshotMsg | ActorMsg | InteractMsg | OccupancyMsg | SayMsg | TalkMsg | KnockMsg | ResultMsg;
@@ -48,6 +48,7 @@ interface ActorView { from: Pos; to: Pos; start: number; flip: boolean; frame: n
 // ---- page globals ----
 interface CrabNostrConfig {
   town?: string; relays?: string[]; roomSpot?: Pos; listening?: string[]; talkTo?: string;
+  blossom?: string; // https origin of the Blossom server the owner uploads chat images to
 }
 // NIP-07 signer (browser extension)
 interface Nip07 {

@@ -72,7 +72,7 @@ function apply(ev: WorldMsg) {
     CrabChat.add(CrabChat.entry(ev, chatCtx()));
   } else if (ev.type === "talk") {
     // our own talk is already on screen (sent at once): the echo only confirms it
-    const mine = me && ev.by === ownAvatarId(me) && live && outbox.echo(ev.message || "");
+    const mine = me && ev.by === ownAvatarId(me) && live && outbox.echo(ev.message || "", ev.image);
     if (mine) delivered(mine); else CrabChat.add(CrabChat.entry(ev, chatCtx()));
   } else if (ev.type === "say" && ev.actor) {
     CrabChat.add(CrabChat.entry(ev, chatCtx()));
@@ -82,7 +82,7 @@ function apply(ev: WorldMsg) {
     if (!me || ev.p !== me) { /* someone else's command */ }
     else if (ev.cmd === "talk" && outbox.result(ev.e, ev.ok, ev.error)) onTalkResult(ev);
     else if (live && CrabTalk.resultWorthALine(ev)) CrabChat.error(CrabChat.resultText(ev));
-    if (me && ev.p === me && ev.role === "owner" && !myActor) { myActor = ownAvatarId(me); CrabView.setSelf(myActor); }
+    if (me && ev.p === me && ev.role === "owner" && !myActor) { myActor = ownAvatarId(me); CrabView.setSelf(myActor); showImageButton(); }
   }
   updateStatus();
   updateKnockTargets();
@@ -219,7 +219,7 @@ const talkName = () => (actors[talkActor()] && actors[talkActor()].name) || "の
 type OutItem = ReturnType<typeof outbox.add>;
 let typingTimer: ReturnType<typeof setTimeout> | undefined;
 function showStatus(it: OutItem) {
-  CrabChat.setStatus(rows.get(it.key), it.status, CrabTalk.STATUS_TEXT[it.status], it.error, () => talk(it.text, it));
+  CrabChat.setStatus(rows.get(it.key), it.status, CrabTalk.STATUS_TEXT[it.status], it.error, () => talk(it.text, it, it.image));
 }
 const talkIn = $<HTMLInputElement>("talkText");
 function delivered(it: OutItem) {
@@ -240,13 +240,13 @@ function relayRejected(id: string, url: string, why: string) {
   if (!it) { CrabChat.error(`${url} に拒否された: ${why}`); return; }
   // other relays may still carry it: the town's result decides
 }
-async function talk(text: string, again?: OutItem) {
-  const it = again || outbox.add(text);
+async function talk(text: string, again?: OutItem, image?: string) {
+  const it = again || outbox.add(text, image);
   if (again) { it.status = "sending"; it.error = ""; it.eventId = ""; showStatus(it); }
-  else rows.set(it.key, CrabChat.add({ kind: "self", who: "あなた", to: "", text }));
+  else rows.set(it.key, CrabChat.add({ kind: "self", who: "あなた", to: "", text, image }));
   showStatus(it);
   let r;
-  try { r = await publish({ type: "talk", text }); } catch (e) { outbox.signFailed(it, errText(e)); failed(it); return; }
+  try { r = await publish(image ? { type: "talk", text, image } : { type: "talk", text }); } catch (e) { outbox.signFailed(it, errText(e)); failed(it); return; }
   outbox.sent(it, r.ev.id, r.n);
   if (it.status === "failed") { failed(it); return; }
   const id = r.ev.id;
@@ -302,6 +302,32 @@ $("talkForm").onsubmit = (e) => {
   if (!text) return;
   if ([...text].length > 280) { CrabChat.error("talk: 280文字まで"); return; }
   talk(text);
+};
+
+// ---- images (owner only, issue #20) ----
+// The button appears only once the town has answered this pubkey as "owner";
+// the town refuses an image from anyone else anyway. The file goes to Blossom
+// (signed by the owner with NIP-07), the returned https URL rides in a talk.
+const BLOSSOM = qs.get("blossom") || cfg.blossom || "https://blossom.primal.net";
+const imgPick = $<HTMLInputElement>("imgPick"), imgBtn = $("imgBtn");
+function showImageButton() { imgBtn.hidden = false; imgPick.disabled = false; }
+imgPick.onchange = async () => {
+  const file = imgPick.files && imgPick.files[0];
+  imgPick.value = ""; // the same file may be picked again
+  if (!file || !myActor || !window.nostr) return;
+  const bad = CrabUpload.checkFile(file);
+  if (bad) { CrabChat.error("画像: " + bad); return; }
+  const signer = window.nostr;
+  imgBtn.classList.add("busy"); imgBtn.setAttribute("aria-busy", "true");
+  const note = CrabChat.system(`画像をアップロード中… (${Math.ceil(file.size / 1024)}KB → ${new URL(BLOSSOM).host})`);
+  try {
+    const url = await CrabUpload.upload(BLOSSOM, file, { fetch: (u: string, o: RequestInit) => fetch(u, o), sign: t => signer.signEvent(t), digest: d => crypto.subtle.digest("SHA-256", d) });
+    note?.remove();
+    const text = talkIn.value.trim();
+    if ([...text].length > 280) { CrabChat.error("talk: 280文字まで"); return; }
+    talk(text, undefined, url);
+  } catch (e) { note?.remove(); CrabChat.error("画像: " + errText(e)); }
+  finally { imgBtn.classList.remove("busy"); imgBtn.removeAttribute("aria-busy"); }
 };
 
 if (!TOWN || !/^[0-9a-f]{64}$/.test(TOWN) || RELAYS.length === 0) {
