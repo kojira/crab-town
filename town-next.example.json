@@ -1,0 +1,2600 @@
+{
+ "owner": "b3e43e8cc7e6dff23a33d9213a3e912d895b1c3e4250240e0c99dbefe3068b5f",
+ "spawn": {
+  "room": "town",
+  "pos": {
+   "x": 24,
+   "y": 5
+  }
+ },
+ "names": [
+  {
+   "pubkey": "9be0be987e28ff62d7cadbd0696b47a87d33c7de3fee4092adafa1b9d683d918",
+   "name": "のすたろう",
+   "room": "town",
+   "pos": {
+    "x": 48,
+    "y": 3
+   }
+  }
+ ],
+ "rooms": [
+  {
+   "id": "town",
+   "width": 58,
+   "height": 20,
+   "visibility": "public",
+   "houses": [
+    {
+     "id": "labomi-house",
+     "owner": "",
+     "invited": [],
+     "rect": {
+      "x": 0,
+      "y": 0,
+      "w": 22,
+      "h": 20
+     }
+    },
+    {
+     "id": "nostarou-house",
+     "owner": "9be0be987e28ff62d7cadbd0696b47a87d33c7de3fee4092adafa1b9d683d918",
+     "invited": [],
+     "rect": {
+      "x": 26,
+      "y": 0,
+      "w": 32,
+      "h": 20
+     }
+    }
+   ],
+   "zones": [
+    {
+     "id": "labomi-ldk",
+     "name": "LDK",
+     "floor": "pinkwood",
+     "visibility": "public",
+     "rect": {
+      "x": 1,
+      "y": 1,
+      "w": 15,
+      "h": 8
+     },
+     "house": "labomi-house"
+    },
+    {
+     "id": "labomi-entrance",
+     "name": "玄関",
+     "floor": "marble",
+     "visibility": "public",
+     "rect": {
+      "x": 17,
+      "y": 1,
+      "w": 4,
+      "h": 8
+     },
+     "house": "labomi-house"
+    },
+    {
+     "id": "labomi-hallway",
+     "name": "廊下",
+     "floor": "hall",
+     "visibility": "public",
+     "rect": {
+      "x": 1,
+      "y": 10,
+      "w": 20,
+      "h": 2
+     },
+     "house": "labomi-house"
+    },
+    {
+     "id": "labomi-room",
+     "name": "らぼみの部屋",
+     "floor": "pinkcarpet",
+     "visibility": "owner",
+     "rect": {
+      "x": 1,
+      "y": 13,
+      "w": 7,
+      "h": 6
+     },
+     "house": "labomi-house"
+    },
+    {
+     "id": "labomi-guest",
+     "name": "おとまり部屋",
+     "floor": "mat",
+     "visibility": "invited",
+     "rect": {
+      "x": 9,
+      "y": 13,
+      "w": 5,
+      "h": 6
+     },
+     "house": "labomi-house"
+    },
+    {
+     "id": "labomi-toilet",
+     "name": "トイレ",
+     "floor": "bathtile",
+     "visibility": "owner",
+     "rect": {
+      "x": 15,
+      "y": 13,
+      "w": 2,
+      "h": 3
+     },
+     "house": "labomi-house",
+     "private": true
+    },
+    {
+     "id": "labomi-washroom",
+     "name": "洗面所",
+     "floor": "cushionfloor",
+     "visibility": "owner",
+     "rect": {
+      "x": 18,
+      "y": 13,
+      "w": 3,
+      "h": 3
+     },
+     "house": "labomi-house"
+    },
+    {
+     "id": "labomi-bath",
+     "name": "浴室",
+     "floor": "bathtile",
+     "visibility": "owner",
+     "rect": {
+      "x": 15,
+      "y": 17,
+      "w": 6,
+      "h": 2
+     },
+     "house": "labomi-house",
+     "private": true
+    },
+    {
+     "id": "garden",
+     "name": "庭",
+     "floor": "grass",
+     "visibility": "public",
+     "rect": {
+      "x": 22,
+      "y": 0,
+      "w": 4,
+      "h": 20
+     }
+    },
+    {
+     "id": "entrance",
+     "name": "玄関",
+     "floor": "stone",
+     "visibility": "public",
+     "rect": {
+      "x": 27,
+      "y": 1,
+      "w": 4,
+      "h": 8
+     },
+     "house": "nostarou-house"
+    },
+    {
+     "id": "kitchen",
+     "name": "キッチン",
+     "floor": "tile",
+     "visibility": "public",
+     "rect": {
+      "x": 32,
+      "y": 1,
+      "w": 7,
+      "h": 4
+     },
+     "house": "nostarou-house"
+    },
+    {
+     "id": "dining",
+     "name": "ダイニング",
+     "floor": "wood",
+     "visibility": "public",
+     "rect": {
+      "x": 39,
+      "y": 1,
+      "w": 8,
+      "h": 4
+     },
+     "house": "nostarou-house"
+    },
+    {
+     "id": "living",
+     "name": "リビング",
+     "floor": "rug",
+     "visibility": "public",
+     "rect": {
+      "x": 47,
+      "y": 1,
+      "w": 10,
+      "h": 8
+     },
+     "house": "nostarou-house"
+    },
+    {
+     "id": "toilet",
+     "name": "トイレ",
+     "floor": "bathtile",
+     "visibility": "owner",
+     "rect": {
+      "x": 32,
+      "y": 6,
+      "w": 3,
+      "h": 3
+     },
+     "house": "nostarou-house",
+     "private": true
+    },
+    {
+     "id": "washroom",
+     "name": "洗面所",
+     "floor": "cushionfloor",
+     "visibility": "owner",
+     "rect": {
+      "x": 36,
+      "y": 6,
+      "w": 5,
+      "h": 3
+     },
+     "house": "nostarou-house"
+    },
+    {
+     "id": "bath",
+     "name": "浴室",
+     "floor": "bathtile",
+     "visibility": "owner",
+     "rect": {
+      "x": 42,
+      "y": 6,
+      "w": 4,
+      "h": 3
+     },
+     "house": "nostarou-house",
+     "private": true
+    },
+    {
+     "id": "hallway",
+     "name": "廊下",
+     "floor": "hall",
+     "visibility": "public",
+     "rect": {
+      "x": 27,
+      "y": 10,
+      "w": 30,
+      "h": 2
+     },
+     "house": "nostarou-house"
+    },
+    {
+     "id": "bedroom",
+     "name": "寝室",
+     "floor": "carpet",
+     "visibility": "owner",
+     "rect": {
+      "x": 27,
+      "y": 13,
+      "w": 7,
+      "h": 6
+     },
+     "house": "nostarou-house"
+    },
+    {
+     "id": "study",
+     "name": "書斎",
+     "floor": "darkwood",
+     "visibility": "owner",
+     "rect": {
+      "x": 35,
+      "y": 13,
+      "w": 7,
+      "h": 6
+     },
+     "house": "nostarou-house"
+    },
+    {
+     "id": "hobby",
+     "name": "趣味部屋",
+     "floor": "mat",
+     "visibility": "invited",
+     "rect": {
+      "x": 43,
+      "y": 13,
+      "w": 7,
+      "h": 6
+     },
+     "house": "nostarou-house"
+    },
+    {
+     "id": "guest",
+     "name": "ゲストルーム",
+     "floor": "bluecarpet",
+     "visibility": "invited",
+     "rect": {
+      "x": 51,
+      "y": 13,
+      "w": 6,
+      "h": 6
+     },
+     "house": "nostarou-house"
+    }
+   ],
+   "walls": [
+    {
+     "x": 0,
+     "y": 0,
+     "w": 22,
+     "h": 1
+    },
+    {
+     "x": 0,
+     "y": 19,
+     "w": 22,
+     "h": 1
+    },
+    {
+     "x": 0,
+     "y": 0,
+     "w": 1,
+     "h": 20
+    },
+    {
+     "x": 21,
+     "y": 0,
+     "w": 1,
+     "h": 20
+    },
+    {
+     "x": 16,
+     "y": 1,
+     "w": 1,
+     "h": 8
+    },
+    {
+     "x": 0,
+     "y": 9,
+     "w": 22,
+     "h": 1
+    },
+    {
+     "x": 0,
+     "y": 12,
+     "w": 22,
+     "h": 1
+    },
+    {
+     "x": 8,
+     "y": 13,
+     "w": 1,
+     "h": 6
+    },
+    {
+     "x": 14,
+     "y": 13,
+     "w": 1,
+     "h": 6
+    },
+    {
+     "x": 17,
+     "y": 13,
+     "w": 1,
+     "h": 3
+    },
+    {
+     "x": 15,
+     "y": 16,
+     "w": 6,
+     "h": 1
+    },
+    {
+     "x": 26,
+     "y": 0,
+     "w": 32,
+     "h": 1
+    },
+    {
+     "x": 26,
+     "y": 19,
+     "w": 32,
+     "h": 1
+    },
+    {
+     "x": 26,
+     "y": 0,
+     "w": 1,
+     "h": 20
+    },
+    {
+     "x": 57,
+     "y": 0,
+     "w": 1,
+     "h": 20
+    },
+    {
+     "x": 31,
+     "y": 1,
+     "w": 1,
+     "h": 8
+    },
+    {
+     "x": 32,
+     "y": 5,
+     "w": 15,
+     "h": 1
+    },
+    {
+     "x": 35,
+     "y": 6,
+     "w": 1,
+     "h": 3
+    },
+    {
+     "x": 41,
+     "y": 6,
+     "w": 1,
+     "h": 3
+    },
+    {
+     "x": 46,
+     "y": 6,
+     "w": 1,
+     "h": 3
+    },
+    {
+     "x": 26,
+     "y": 9,
+     "w": 32,
+     "h": 1
+    },
+    {
+     "x": 26,
+     "y": 12,
+     "w": 32,
+     "h": 1
+    },
+    {
+     "x": 34,
+     "y": 13,
+     "w": 1,
+     "h": 6
+    },
+    {
+     "x": 42,
+     "y": 13,
+     "w": 1,
+     "h": 6
+    },
+    {
+     "x": 50,
+     "y": 13,
+     "w": 1,
+     "h": 6
+    }
+   ],
+   "doors": [
+    {
+     "x": 21,
+     "y": 4
+    },
+    {
+     "x": 16,
+     "y": 3
+    },
+    {
+     "x": 8,
+     "y": 9
+    },
+    {
+     "x": 18,
+     "y": 9
+    },
+    {
+     "x": 4,
+     "y": 12
+    },
+    {
+     "x": 11,
+     "y": 12
+    },
+    {
+     "x": 16,
+     "y": 12
+    },
+    {
+     "x": 19,
+     "y": 12
+    },
+    {
+     "x": 19,
+     "y": 16
+    },
+    {
+     "x": 26,
+     "y": 4
+    },
+    {
+     "x": 31,
+     "y": 3
+    },
+    {
+     "x": 29,
+     "y": 9
+    },
+    {
+     "x": 49,
+     "y": 9
+    },
+    {
+     "x": 33,
+     "y": 9
+    },
+    {
+     "x": 38,
+     "y": 9
+    },
+    {
+     "x": 41,
+     "y": 7
+    },
+    {
+     "x": 30,
+     "y": 12
+    },
+    {
+     "x": 38,
+     "y": 12
+    },
+    {
+     "x": 46,
+     "y": 12
+    },
+    {
+     "x": 54,
+     "y": 12
+    }
+   ],
+   "furniture": [
+    {
+     "id": "labomi-counter",
+     "kind": "counter",
+     "label": "キッチン台",
+     "function": "",
+     "pos": {
+      "x": 1,
+      "y": 1
+     },
+     "size": {
+      "w": 3,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "labomi-stove",
+     "kind": "stove",
+     "label": "コンロ",
+     "function": "",
+     "pos": {
+      "x": 4,
+      "y": 1
+     },
+     "size": {
+      "w": 2,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "labomi-fridge",
+     "kind": "fridge",
+     "label": "冷蔵庫",
+     "function": "",
+     "pos": {
+      "x": 6,
+      "y": 1
+     },
+     "size": {
+      "w": 1,
+      "h": 2
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "labomi-kitchenmat",
+     "kind": "kitchenmat",
+     "label": "キッチンマット",
+     "function": "",
+     "pos": {
+      "x": 1,
+      "y": 2
+     },
+     "size": {
+      "w": 3,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": "",
+     "walkable": true
+    },
+    {
+     "id": "labomi-table",
+     "kind": "table",
+     "label": "ダイニングテーブル",
+     "function": "",
+     "pos": {
+      "x": 3,
+      "y": 4
+     },
+     "size": {
+      "w": 2,
+      "h": 2
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "labomi-chair1",
+     "kind": "chair",
+     "label": "椅子",
+     "function": "rest",
+     "pos": {
+      "x": 2,
+      "y": 4
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 1,
+      "y": 4
+     },
+     "seat": {
+      "x": 2,
+      "y": 4
+     },
+     "state": "idle"
+    },
+    {
+     "id": "labomi-chair2",
+     "kind": "chair",
+     "label": "椅子",
+     "function": "rest",
+     "pos": {
+      "x": 5,
+      "y": 5
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 6,
+      "y": 5
+     },
+     "seat": {
+      "x": 5,
+      "y": 5
+     },
+     "state": "idle"
+    },
+    {
+     "id": "labomi-window",
+     "kind": "window",
+     "label": "窓",
+     "function": "timeline",
+     "pos": {
+      "x": 10,
+      "y": 0
+     },
+     "size": {
+      "w": 4,
+      "h": 1
+     },
+     "access": {
+      "x": 11,
+      "y": 1
+     },
+     "state": "talking"
+    },
+    {
+     "id": "labomi-rug",
+     "kind": "heartrug",
+     "label": "ハートのラグ",
+     "function": "",
+     "pos": {
+      "x": 10,
+      "y": 2
+     },
+     "size": {
+      "w": 4,
+      "h": 2
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": "",
+     "walkable": true
+    },
+    {
+     "id": "labomi-sofa",
+     "kind": "pinksofa",
+     "label": "ピンクのソファ",
+     "function": "visitors",
+     "pos": {
+      "x": 10,
+      "y": 5
+     },
+     "size": {
+      "w": 4,
+      "h": 2
+     },
+     "access": {
+      "x": 11,
+      "y": 4
+     },
+     "seat": {
+      "x": 11,
+      "y": 5
+     },
+     "state": "talking"
+    },
+    {
+     "id": "labomi-ringlight",
+     "kind": "ringlight",
+     "label": "自撮りライト",
+     "function": "",
+     "pos": {
+      "x": 15,
+      "y": 1
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "labomi-plush",
+     "kind": "plush",
+     "label": "ぬいぐるみ",
+     "function": "",
+     "pos": {
+      "x": 15,
+      "y": 8
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "labomi-plant",
+     "kind": "plant",
+     "label": "観葉植物",
+     "function": "",
+     "pos": {
+      "x": 1,
+      "y": 8
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "labomi-trash",
+     "kind": "trash",
+     "label": "ゴミ箱",
+     "function": "",
+     "pos": {
+      "x": 7,
+      "y": 8
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "labomi-shoebox",
+     "kind": "shoebox",
+     "label": "下駄箱",
+     "function": "",
+     "pos": {
+      "x": 20,
+      "y": 1
+     },
+     "size": {
+      "w": 1,
+      "h": 3
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "labomi-doormat",
+     "kind": "doormat",
+     "label": "玄関マット",
+     "function": "",
+     "pos": {
+      "x": 20,
+      "y": 4
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": "",
+     "walkable": true
+    },
+    {
+     "id": "labomi-umbrella",
+     "kind": "umbrella",
+     "label": "傘立て",
+     "function": "",
+     "pos": {
+      "x": 17,
+      "y": 1
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "labomi-entplant",
+     "kind": "plant",
+     "label": "観葉植物",
+     "function": "",
+     "pos": {
+      "x": 20,
+      "y": 8
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "labomi-hallplant",
+     "kind": "plant",
+     "label": "観葉植物",
+     "function": "",
+     "pos": {
+      "x": 1,
+      "y": 10
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "labomi-pc",
+     "kind": "laptop",
+     "label": "ノートPC",
+     "function": "work-container",
+     "pos": {
+      "x": 1,
+      "y": 13
+     },
+     "size": {
+      "w": 2,
+      "h": 1
+     },
+     "access": {
+      "x": 1,
+      "y": 14
+     },
+     "state": "working"
+    },
+    {
+     "id": "labomi-bed",
+     "kind": "pinkbed",
+     "label": "ベッド",
+     "function": "standby",
+     "pos": {
+      "x": 1,
+      "y": 15
+     },
+     "size": {
+      "w": 2,
+      "h": 3
+     },
+     "access": {
+      "x": 3,
+      "y": 16
+     },
+     "seat": {
+      "x": 1,
+      "y": 16
+     },
+     "state": "away"
+    },
+    {
+     "id": "labomi-dresser",
+     "kind": "dresser",
+     "label": "ドレッサー",
+     "function": "",
+     "pos": {
+      "x": 6,
+      "y": 13
+     },
+     "size": {
+      "w": 2,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "labomi-heartrug",
+     "kind": "heartrug",
+     "label": "ハートのラグ",
+     "function": "",
+     "pos": {
+      "x": 4,
+      "y": 16
+     },
+     "size": {
+      "w": 3,
+      "h": 2
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": "",
+     "walkable": true
+    },
+    {
+     "id": "labomi-plush2",
+     "kind": "plush",
+     "label": "ぬいぐるみ",
+     "function": "",
+     "pos": {
+      "x": 7,
+      "y": 18
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "labomi-futon1",
+     "kind": "futon",
+     "label": "布団",
+     "function": "",
+     "pos": {
+      "x": 9,
+      "y": 15
+     },
+     "size": {
+      "w": 2,
+      "h": 3
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "labomi-futon2",
+     "kind": "futon",
+     "label": "布団",
+     "function": "",
+     "pos": {
+      "x": 12,
+      "y": 15
+     },
+     "size": {
+      "w": 2,
+      "h": 3
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "labomi-guestlamp",
+     "kind": "floorlamp",
+     "label": "フロアランプ",
+     "function": "",
+     "pos": {
+      "x": 9,
+      "y": 13
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "labomi-toiletbowl",
+     "kind": "toilet",
+     "label": "便器",
+     "function": "",
+     "pos": {
+      "x": 15,
+      "y": 13
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "labomi-paper",
+     "kind": "paper",
+     "label": "トイレットペーパー",
+     "function": "",
+     "pos": {
+      "x": 15,
+      "y": 15
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "labomi-toiletmat",
+     "kind": "toiletmat",
+     "label": "トイレマット",
+     "function": "",
+     "pos": {
+      "x": 16,
+      "y": 14
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": "",
+     "walkable": true
+    },
+    {
+     "id": "labomi-washer",
+     "kind": "washer",
+     "label": "洗濯機",
+     "function": "",
+     "pos": {
+      "x": 18,
+      "y": 13
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "labomi-vanity",
+     "kind": "vanity",
+     "label": "洗面台",
+     "function": "",
+     "pos": {
+      "x": 20,
+      "y": 13
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "labomi-laundry",
+     "kind": "laundry",
+     "label": "洗濯カゴ",
+     "function": "",
+     "pos": {
+      "x": 18,
+      "y": 15
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "labomi-bathmat",
+     "kind": "bathmat",
+     "label": "バスマット",
+     "function": "",
+     "pos": {
+      "x": 20,
+      "y": 15
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": "",
+     "walkable": true
+    },
+    {
+     "id": "labomi-bathtub",
+     "kind": "bathtub",
+     "label": "浴槽",
+     "function": "",
+     "pos": {
+      "x": 15,
+      "y": 17
+     },
+     "size": {
+      "w": 2,
+      "h": 2
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "labomi-shower",
+     "kind": "shower",
+     "label": "シャワー",
+     "function": "",
+     "pos": {
+      "x": 20,
+      "y": 17
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "stone1",
+     "kind": "steppingstone",
+     "label": "飛び石",
+     "function": "",
+     "pos": {
+      "x": 22,
+      "y": 4
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": "",
+     "walkable": true
+    },
+    {
+     "id": "stone2",
+     "kind": "steppingstone",
+     "label": "飛び石",
+     "function": "",
+     "pos": {
+      "x": 23,
+      "y": 4
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": "",
+     "walkable": true
+    },
+    {
+     "id": "stone3",
+     "kind": "steppingstone",
+     "label": "飛び石",
+     "function": "",
+     "pos": {
+      "x": 24,
+      "y": 4
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": "",
+     "walkable": true
+    },
+    {
+     "id": "stone4",
+     "kind": "steppingstone",
+     "label": "飛び石",
+     "function": "",
+     "pos": {
+      "x": 25,
+      "y": 4
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": "",
+     "walkable": true
+    },
+    {
+     "id": "postbox-labomi",
+     "kind": "postbox",
+     "label": "らぼみの郵便受け",
+     "function": "",
+     "pos": {
+      "x": 22,
+      "y": 2
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "postbox-nostarou",
+     "kind": "postbox",
+     "label": "のすたろうの郵便受け",
+     "function": "",
+     "pos": {
+      "x": 25,
+      "y": 6
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "tree1",
+     "kind": "tree",
+     "label": "木",
+     "function": "",
+     "pos": {
+      "x": 24,
+      "y": 0
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "tree2",
+     "kind": "tree",
+     "label": "木",
+     "function": "",
+     "pos": {
+      "x": 23,
+      "y": 11
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "tree3",
+     "kind": "tree",
+     "label": "木",
+     "function": "",
+     "pos": {
+      "x": 25,
+      "y": 17
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "flower1",
+     "kind": "flower",
+     "label": "花壇",
+     "function": "",
+     "pos": {
+      "x": 22,
+      "y": 8
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "flower2",
+     "kind": "flower",
+     "label": "花壇",
+     "function": "",
+     "pos": {
+      "x": 25,
+      "y": 9
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "flower3",
+     "kind": "flower",
+     "label": "花壇",
+     "function": "",
+     "pos": {
+      "x": 22,
+      "y": 15
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "shoebox",
+     "kind": "shoebox",
+     "label": "下駄箱",
+     "function": "",
+     "pos": {
+      "x": 27,
+      "y": 1
+     },
+     "size": {
+      "w": 1,
+      "h": 3
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "doormat",
+     "kind": "doormat",
+     "label": "玄関マット",
+     "function": "",
+     "pos": {
+      "x": 27,
+      "y": 4
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": "",
+     "walkable": true
+    },
+    {
+     "id": "umbrella",
+     "kind": "umbrella",
+     "label": "傘立て",
+     "function": "",
+     "pos": {
+      "x": 30,
+      "y": 1
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "coatrack",
+     "kind": "coatrack",
+     "label": "コート掛け",
+     "function": "",
+     "pos": {
+      "x": 27,
+      "y": 7
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "entplant",
+     "kind": "plant",
+     "label": "観葉植物",
+     "function": "",
+     "pos": {
+      "x": 30,
+      "y": 8
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "counter",
+     "kind": "counter",
+     "label": "キッチン台",
+     "function": "",
+     "pos": {
+      "x": 32,
+      "y": 1
+     },
+     "size": {
+      "w": 4,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "stove",
+     "kind": "stove",
+     "label": "コンロ",
+     "function": "",
+     "pos": {
+      "x": 36,
+      "y": 1
+     },
+     "size": {
+      "w": 2,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "fridge",
+     "kind": "fridge",
+     "label": "冷蔵庫",
+     "function": "",
+     "pos": {
+      "x": 38,
+      "y": 1
+     },
+     "size": {
+      "w": 1,
+      "h": 2
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "kitchenmat",
+     "kind": "kitchenmat",
+     "label": "キッチンマット",
+     "function": "",
+     "pos": {
+      "x": 32,
+      "y": 2
+     },
+     "size": {
+      "w": 4,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": "",
+     "walkable": true
+    },
+    {
+     "id": "kitchentrash",
+     "kind": "trash",
+     "label": "ゴミ箱",
+     "function": "",
+     "pos": {
+      "x": 32,
+      "y": 4
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "table",
+     "kind": "table",
+     "label": "ダイニングテーブル",
+     "function": "",
+     "pos": {
+      "x": 41,
+      "y": 2
+     },
+     "size": {
+      "w": 3,
+      "h": 2
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "chair1",
+     "kind": "chair",
+     "label": "椅子",
+     "function": "rest",
+     "pos": {
+      "x": 40,
+      "y": 2
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 39,
+      "y": 2
+     },
+     "seat": {
+      "x": 40,
+      "y": 2
+     },
+     "state": "idle"
+    },
+    {
+     "id": "chair2",
+     "kind": "chair",
+     "label": "椅子",
+     "function": "rest",
+     "pos": {
+      "x": 40,
+      "y": 3
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 39,
+      "y": 3
+     },
+     "seat": {
+      "x": 40,
+      "y": 3
+     },
+     "state": "idle"
+    },
+    {
+     "id": "chair3",
+     "kind": "chair",
+     "label": "椅子",
+     "function": "rest",
+     "pos": {
+      "x": 44,
+      "y": 2
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 45,
+      "y": 2
+     },
+     "seat": {
+      "x": 44,
+      "y": 2
+     },
+     "state": "idle"
+    },
+    {
+     "id": "chair4",
+     "kind": "chair",
+     "label": "椅子",
+     "function": "rest",
+     "pos": {
+      "x": 44,
+      "y": 3
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 45,
+      "y": 3
+     },
+     "seat": {
+      "x": 44,
+      "y": 3
+     },
+     "state": "idle"
+    },
+    {
+     "id": "clock",
+     "kind": "clock",
+     "label": "掛け時計",
+     "function": "",
+     "pos": {
+      "x": 42,
+      "y": 0
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "sideboard",
+     "kind": "sideboard",
+     "label": "食器棚",
+     "function": "",
+     "pos": {
+      "x": 45,
+      "y": 1
+     },
+     "size": {
+      "w": 2,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "diningplant",
+     "kind": "plant",
+     "label": "観葉植物",
+     "function": "",
+     "pos": {
+      "x": 46,
+      "y": 4
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "window",
+     "kind": "window",
+     "label": "窓",
+     "function": "timeline",
+     "pos": {
+      "x": 50,
+      "y": 0
+     },
+     "size": {
+      "w": 4,
+      "h": 1
+     },
+     "access": {
+      "x": 51,
+      "y": 1
+     },
+     "state": "talking"
+    },
+    {
+     "id": "lowtable",
+     "kind": "lowtable",
+     "label": "ローテーブル",
+     "function": "",
+     "pos": {
+      "x": 51,
+      "y": 3
+     },
+     "size": {
+      "w": 2,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "sofa",
+     "kind": "sofa",
+     "label": "ソファ",
+     "function": "visitors",
+     "pos": {
+      "x": 50,
+      "y": 6
+     },
+     "size": {
+      "w": 4,
+      "h": 2
+     },
+     "access": {
+      "x": 52,
+      "y": 5
+     },
+     "seat": {
+      "x": 52,
+      "y": 6
+     },
+     "state": "talking"
+    },
+    {
+     "id": "plant",
+     "kind": "plant",
+     "label": "観葉植物",
+     "function": "",
+     "pos": {
+      "x": 56,
+      "y": 1
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "livingplant",
+     "kind": "plant",
+     "label": "観葉植物",
+     "function": "",
+     "pos": {
+      "x": 47,
+      "y": 1
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "floorlamp",
+     "kind": "floorlamp",
+     "label": "フロアランプ",
+     "function": "",
+     "pos": {
+      "x": 56,
+      "y": 7
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "livingtrash",
+     "kind": "trash",
+     "label": "ゴミ箱",
+     "function": "",
+     "pos": {
+      "x": 47,
+      "y": 8
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "toiletbowl",
+     "kind": "toilet",
+     "label": "便器",
+     "function": "",
+     "pos": {
+      "x": 33,
+      "y": 6
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "paper",
+     "kind": "paper",
+     "label": "トイレットペーパー",
+     "function": "",
+     "pos": {
+      "x": 34,
+      "y": 6
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "toiletmat",
+     "kind": "toiletmat",
+     "label": "トイレマット",
+     "function": "",
+     "pos": {
+      "x": 33,
+      "y": 7
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": "",
+     "walkable": true
+    },
+    {
+     "id": "vanity",
+     "kind": "vanity",
+     "label": "洗面台",
+     "function": "",
+     "pos": {
+      "x": 36,
+      "y": 6
+     },
+     "size": {
+      "w": 2,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "washer",
+     "kind": "washer",
+     "label": "洗濯機",
+     "function": "",
+     "pos": {
+      "x": 40,
+      "y": 6
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "laundry",
+     "kind": "laundry",
+     "label": "洗濯カゴ",
+     "function": "",
+     "pos": {
+      "x": 36,
+      "y": 8
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "shower",
+     "kind": "shower",
+     "label": "シャワー",
+     "function": "",
+     "pos": {
+      "x": 42,
+      "y": 6
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "bathtub",
+     "kind": "bathtub",
+     "label": "浴槽",
+     "function": "",
+     "pos": {
+      "x": 44,
+      "y": 6
+     },
+     "size": {
+      "w": 2,
+      "h": 3
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "bathmat",
+     "kind": "bathmat",
+     "label": "バスマット",
+     "function": "",
+     "pos": {
+      "x": 40,
+      "y": 7
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": "",
+     "walkable": true
+    },
+    {
+     "id": "hallplant",
+     "kind": "plant",
+     "label": "観葉植物",
+     "function": "",
+     "pos": {
+      "x": 56,
+      "y": 10
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "bed",
+     "kind": "bed",
+     "label": "ベッド",
+     "function": "standby",
+     "pos": {
+      "x": 27,
+      "y": 14
+     },
+     "size": {
+      "w": 2,
+      "h": 3
+     },
+     "access": {
+      "x": 29,
+      "y": 15
+     },
+     "seat": {
+      "x": 27,
+      "y": 15
+     },
+     "state": "away"
+    },
+    {
+     "id": "nightstand",
+     "kind": "nightstand",
+     "label": "ナイトテーブル",
+     "function": "",
+     "pos": {
+      "x": 29,
+      "y": 14
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "wardrobe",
+     "kind": "wardrobe",
+     "label": "クローゼット",
+     "function": "",
+     "pos": {
+      "x": 32,
+      "y": 13
+     },
+     "size": {
+      "w": 2,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "bedrug",
+     "kind": "rug",
+     "label": "ラグ",
+     "function": "",
+     "pos": {
+      "x": 30,
+      "y": 16
+     },
+     "size": {
+      "w": 3,
+      "h": 2
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": "",
+     "walkable": true
+    },
+    {
+     "id": "bedplant",
+     "kind": "plant",
+     "label": "観葉植物",
+     "function": "",
+     "pos": {
+      "x": 27,
+      "y": 18
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "bedtrash",
+     "kind": "trash",
+     "label": "ゴミ箱",
+     "function": "",
+     "pos": {
+      "x": 33,
+      "y": 18
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "bookshelf",
+     "kind": "bookshelf",
+     "label": "本棚",
+     "function": "memory",
+     "pos": {
+      "x": 35,
+      "y": 13
+     },
+     "size": {
+      "w": 3,
+      "h": 2
+     },
+     "access": {
+      "x": 36,
+      "y": 15
+     },
+     "state": "working"
+    },
+    {
+     "id": "pc",
+     "kind": "pc",
+     "label": "PC",
+     "function": "work-container",
+     "pos": {
+      "x": 39,
+      "y": 13
+     },
+     "size": {
+      "w": 2,
+      "h": 1
+     },
+     "access": {
+      "x": 39,
+      "y": 14
+     },
+     "state": "working"
+    },
+    {
+     "id": "deskchair",
+     "kind": "deskchair",
+     "label": "デスクチェア",
+     "function": "",
+     "pos": {
+      "x": 39,
+      "y": 14
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": "",
+     "walkable": true
+    },
+    {
+     "id": "studytrash",
+     "kind": "trash",
+     "label": "ゴミ箱",
+     "function": "",
+     "pos": {
+      "x": 41,
+      "y": 13
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "studylamp",
+     "kind": "floorlamp",
+     "label": "フロアランプ",
+     "function": "",
+     "pos": {
+      "x": 41,
+      "y": 18
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "studyplant",
+     "kind": "plant",
+     "label": "観葉植物",
+     "function": "",
+     "pos": {
+      "x": 35,
+      "y": 18
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "tv",
+     "kind": "tv",
+     "label": "テレビとゲーム機",
+     "function": "",
+     "pos": {
+      "x": 43,
+      "y": 13
+     },
+     "size": {
+      "w": 3,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "figureshelf",
+     "kind": "figureshelf",
+     "label": "アニメ棚",
+     "function": "",
+     "pos": {
+      "x": 48,
+      "y": 13
+     },
+     "size": {
+      "w": 2,
+      "h": 2
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "beanbag",
+     "kind": "beanbag",
+     "label": "ビーズクッション",
+     "function": "",
+     "pos": {
+      "x": 44,
+      "y": 15
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "hobbyrug",
+     "kind": "rug",
+     "label": "ラグ",
+     "function": "",
+     "pos": {
+      "x": 43,
+      "y": 16
+     },
+     "size": {
+      "w": 3,
+      "h": 2
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": "",
+     "walkable": true
+    },
+    {
+     "id": "hobbytrash",
+     "kind": "trash",
+     "label": "ゴミ箱",
+     "function": "",
+     "pos": {
+      "x": 49,
+      "y": 18
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "guestbed",
+     "kind": "guestbed",
+     "label": "来客用ベッド",
+     "function": "",
+     "pos": {
+      "x": 51,
+      "y": 14
+     },
+     "size": {
+      "w": 2,
+      "h": 3
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "guestplant",
+     "kind": "plant",
+     "label": "観葉植物",
+     "function": "",
+     "pos": {
+      "x": 56,
+      "y": 13
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "guestnight",
+     "kind": "nightstand",
+     "label": "ナイトテーブル",
+     "function": "",
+     "pos": {
+      "x": 53,
+      "y": 14
+     },
+     "size": {
+      "w": 1,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    },
+    {
+     "id": "guestcloset",
+     "kind": "wardrobe",
+     "label": "クローゼット",
+     "function": "",
+     "pos": {
+      "x": 53,
+      "y": 18
+     },
+     "size": {
+      "w": 2,
+      "h": 1
+     },
+     "access": {
+      "x": 0,
+      "y": 0
+     },
+     "state": ""
+    }
+   ]
+  }
+ ]
+}
