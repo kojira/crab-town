@@ -56,6 +56,11 @@ test("keyboard lift = innerHeight - (vv.height + vv.offsetTop), never negative, 
   assert.equal(C.keyboardLift(844, { height: 900, offsetTop: 0, scale: 1 }), 0);
   assert.equal(C.keyboardLift(844, { height: 400, offsetTop: 0, scale: 1.5 }), null); // pinch / focus zoom: do nothing
   assert.equal(C.keyboardLift(844, null), 0);
+  // rule 5 padding: the lift when it fits, else the room minus one line (the log must not outgrow #chat)
+  assert.equal(C.chatPad(100, 216, 23.2), 100);
+  assert.equal(C.chatPad(336, 216, 23.2), 192); // iPhone 13 in WebKit: lift 336 > chat 222 (6px top padding)
+  assert.equal(C.chatPad(336, 20, 23.2), 0);
+  assert.equal(C.chatPad(0, 216, 23.2), 0);
   assert.equal(C.needsWrite(336, 337), false);
   assert.equal(C.needsWrite(336, 338), true);
   assert.equal(C.needsWrite(0, 336), true);

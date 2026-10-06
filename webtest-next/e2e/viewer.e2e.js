@@ -132,6 +132,11 @@ test("iPhone 13 (390x844): layout of 1.1, real join / move / interact / say / ap
     assert.ok(Math.abs(bar0.y - bar1.y - 336) <= 1, `input bar lifted by 336: ${bar0.y} -> ${bar1.y}`);
     assert.deepEqual(map1, map0, "the map does not move or resize");
     assert.deepEqual(chat1, chat, "the chat box keeps its size");
+    // the first chat line stays whole inside the chat box (not cut under the map's bottom edge)
+    const log1 = await rect(page, "#chatlog"), line1 = await rect(page, "#chatlog .line");
+    assert.ok(log1.y >= chat1.y - 0.5 && log1.y + log1.h <= chat1.y + chat1.h + 0.5, `the log stays inside the chat box: ${JSON.stringify(log1)} in ${JSON.stringify(chat1)}`);
+    assert.ok(line1.y >= chat1.y && line1.y + line1.h <= chat1.y + chat1.h, `line 1 fully visible: ${line1.y}..${line1.y + line1.h} in ${chat1.y}..${chat1.y + chat1.h}`);
+    assert.ok(line1.y >= map1.y + map1.h, `line 1 is below the map: ${line1.y} >= ${map1.y + map1.h}`);
     await shot(page, "phone-390-keyboard");
   } finally { await ctx.close(); }
 });

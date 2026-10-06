@@ -64,6 +64,15 @@ export function keyboardLift(innerHeight: number, vv: VV | null | undefined): nu
   if (vv.scale !== 1) return null;
   return Math.max(0, Math.round(innerHeight - (vv.height + vv.offsetTop)));
 }
+// Rule 5: the chat log's inner bottom padding while the bar is lifted. The
+// lifted bar covers `lift` px of the chat box from below, but the log is
+// box-sizing: border-box, so padding larger than the room it has (box height
+// minus its top padding) would grow the log past #chat and the follow scroll
+// would push the lines above the top of the chat, under the map. Keep at
+// least one line of room: pad = min(lift, room - lineH), never below 0.
+export function chatPad(lift: number, room: number, lineH: number): number {
+  return Math.max(0, Math.min(lift, Math.floor(room - lineH)));
+}
 // Rule 3: a change of 1px or less is not written.
 export function needsWrite(prev: number, next: number): boolean {
   return Math.abs(next - prev) > 1;
