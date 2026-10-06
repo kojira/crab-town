@@ -14,9 +14,9 @@ const CrabViewport = /* @__PURE__ */ (() => {
   function scrollTile(availH, townH) {
     return tileSize(availH, townH, SCROLL_MIN_TILE, MAX_TILE);
   }
-  function stageHeight(innerH, top, below, chatH, minH = 160) {
-    const h = Math.floor(innerH - top - below - chatH);
-    return Math.max(minH, h > 0 ? h : 0);
+  function phoneStageHeight(appH, top, maxH, share = 0.4, minH = 140) {
+    const h = Math.floor((appH - top) * share);
+    return Math.max(minH, Math.min(maxH > 0 ? maxH : h, h > 0 ? h : 0));
   }
   function clamp(off, view, content) {
     if (content <= view) return content === view ? 0 : -Math.floor((view - content) / 2);
@@ -79,6 +79,6 @@ const CrabViewport = /* @__PURE__ */ (() => {
   function minimapToTile(mx, my, mScale) {
     return { x: Math.floor(mx / mScale), y: Math.floor(my / mScale) };
   }
-  return { MIN_TILE, MAX_TILE, SCROLL_MIN_TILE, labelScale, scrollTile, stageHeight, knockTargets, chooseMode, tileSize, clampView, centerOn, gardenZone, initialFocus, jumpTargets, minimapScale, minimapFrame, minimapToTile };
+  return { MIN_TILE, MAX_TILE, SCROLL_MIN_TILE, labelScale, scrollTile, phoneStageHeight, knockTargets, chooseMode, tileSize, clampView, centerOn, gardenZone, initialFocus, jumpTargets, minimapScale, minimapFrame, minimapToTile };
 })();
 if (typeof module !== "undefined") module.exports = CrabViewport;

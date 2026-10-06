@@ -93,10 +93,10 @@ test("6: a say answering me reads '→ あなた'; others' replies are dimmed", 
   assert.match(src("nostr.js"), /tag\("reply_to"\)/);
 });
 
-test("7: phone log grows while typing, new-lines button, toggle says what it does", () => {
+test("7: phone log keeps its room while typing, new-lines button, toggle says what it does", () => {
   const html = read("nostr.html");
   const css = html.slice(html.indexOf("<style>"), html.indexOf("</style>"));
-  assert.match(css, /body\.narrow #chat\.focus #log \{[^}]*height:/);
+  assert.match(css, /body\.narrow\.kbup [^{]*#chatHead[^{]*\{[^}]*display:none/); // keyboard up: rows above the log fold away
   assert.match(html, /id="newLines"[^>]*hidden>↓ 新着</);
   assert.equal(Chat.toggleLabel(true), "▲ ログを開く");
   assert.equal(Chat.toggleLabel(false), "▼ ログを閉じる");

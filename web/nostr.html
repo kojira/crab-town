@@ -49,8 +49,13 @@
   .pickbtn input { position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; font-size:16px; }
   #typing { font-size:12px; color:#ffd84a; padding:2px 0; } #talkHint { font-size:12px; color:#ffb347; margin:4px 0 0; }
   /* narrow screens (set by mobile.js): fixed-scale map you drag around.
-     Phones: text at 15-16px, the map fills the height down to the chat panel. */
-  body.narrow { margin:8px; padding-bottom:var(--chat-h, 40vh); font-size:16px; }
+     Phones: the page is one column pinned to the visual viewport (--app-h /
+     --vv-top from chatlog.js, so the soft keyboard shrinks it): header, map,
+     then the chat panel down to the bottom edge -- no band between map and chat.
+     The log takes every pixel the panel has; the input stays at the bottom. */
+  body.narrow { position:fixed; left:0; right:0; top:var(--vv-top, 0px); height:var(--app-h, 100dvh); margin:0; padding:8px 8px 0;
+    box-sizing:border-box; display:flex; flex-direction:column; overflow:hidden; font-size:16px; }
+  body.narrow > * { flex:none; }
   body.narrow h1 { font-size:18px; margin:2px 0; } body.narrow h1 small { display:none; }
   /* one swipeable row each, so the big buttons do not eat the map's height */
   body.narrow #bar, body.narrow #jumps { flex-wrap:nowrap; overflow-x:auto; white-space:nowrap; scrollbar-width:none; }
@@ -58,6 +63,7 @@
   body.narrow #bar > * { flex:none; }
   body.narrow button { font-size:15px; padding:7px 11px; } body.narrow select { font-size:16px; padding:7px 11px; }
   body.narrow #meta { font-size:13px; }
+  body.narrow #mapwrap { min-height:0; overflow:hidden; }
   body.narrow #stage { overflow:hidden; touch-action:none; border:2px solid #444; }
   body.narrow #stage.dragging { cursor:grabbing; }
   body.narrow canvas { max-width:none; max-height:none; border:0; }
@@ -67,18 +73,26 @@
   body.narrow #jumps button { color:#cde; }
   body.narrow #minimap { display:block; position:absolute; right:6px; top:6px; border:1px solid #ffd84a99;
     background:#000a; image-rendering:auto; cursor:pointer; z-index:2; }
-  body.narrow #status, body.narrow #relays { white-space:nowrap; overflow-x:auto; scrollbar-width:none; margin-top:3px; }
-  body.narrow #status { font-size:15px; } body.narrow #relays { font-size:13px; }
-  body.narrow #chat { position:fixed; left:0; right:0; bottom:0; margin:0; max-width:none; z-index:5;
-    background:#15171ccc; backdrop-filter:blur(4px); border-top:1px solid #444; }
+  /* the status line lies over the bottom of the map (it used to push the chat down); relay dots are a wide-screen detail */
+  body.narrow #status { position:absolute; left:2px; right:2px; bottom:2px; margin:0; padding:1px 6px; z-index:1; pointer-events:none;
+    background:#15171cb3; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  body.narrow #relays { display:none; }
+  body.narrow #chat { flex:1 1 0; min-height:0; display:flex; flex-direction:column; margin:4px -8px 0; max-width:none;
+    background:#15171c; border-top:1px solid #444; }
+  body.narrow #chat > * { flex:none; }
   body.narrow #chatHead { display:flex; justify-content:space-between; align-items:center; padding:4px 10px; font-size:16px; }
-  body.narrow #log { font-size:20px; line-height:1.5; height:min(20vh, 180px); max-height:none; padding:0 10px 8px; }
+  body.narrow #logwrap { flex:1 1 0; min-height:0; }
+  body.narrow #log { font-size:20px; line-height:1.5; height:100%; max-height:none; box-sizing:border-box; padding:0 10px 8px; }
   body.narrow #log .t { font-size:15px; } body.narrow #log .system { font-size:15px; }
-  body.narrow #chat.focus #log { height:min(calc(var(--vv-h, 60vh) * .45), 360px); }
-  body.narrow #chat.closed #log, body.narrow #chat.closed #newLines { display:none; }
+  body.narrow #chat.closed #logwrap, body.narrow #chat.closed #newLines { display:none; }
+  /* kbup = typing with the keyboard up: the header rows fold away and the map gives up height, never the log or the input */
+  body.narrow.kbup h1, body.narrow.kbup #bar, body.narrow.kbup #jumps, body.narrow.kbup #chatHead { display:none; }
+  body.narrow.kbup #mapwrap { height:clamp(64px, 24%, 200px); }
   body.narrow #typing, body.narrow #talkHint { padding:0 10px; font-size:14px; } /* the input stays usable when closed */
-  body.narrow #talkForm { margin:0; padding:6px 10px calc(8px + env(safe-area-inset-bottom, 0px)); border-top:1px solid #333; }
-  body.narrow #talkText { max-width:none; font-size:16px; padding:8px; } body.narrow #talk, body.narrow .pickbtn { padding:7px 14px; }
+  body.narrow #talkForm { margin:auto 0 0; padding:6px 10px calc(8px + env(safe-area-inset-bottom, 0px)); border-top:1px solid #333; align-items:stretch; }
+  body.narrow #talkText { max-width:none; font-size:17px; padding:8px 10px; min-height:44px; box-sizing:border-box; }
+  body.narrow #talk { font-size:17px; min-width:64px; min-height:44px; padding:0 14px; }
+  body.narrow .pickbtn { padding:7px 14px; min-height:44px; box-sizing:border-box; }
   body.narrow .pickbtn .lbl { display:none; } body.narrow #log a.img img { max-width:min(240px, 100%); max-height:180px; }
 </style>
 </head>
@@ -95,8 +109,8 @@
 </div>
 <div id="jumps" aria-label="表示位置へジャンプ"></div>
 <div id="mapwrap"><canvas id="minimap" width="116" height="40" title="タップでその場所へ"></canvas>
-<div id="stage"><canvas id="c" width="1856" height="640"></canvas></div></div>
-<div id="status">connecting...</div>
+<div id="stage"><canvas id="c" width="1856" height="640"></canvas></div>
+<div id="status">connecting...</div></div>
 <div id="relays"></div>
 <div id="chat"><div id="chatHead"><span>💬 チャット (<span id="chatCount">0</span>)</span>
   <button type="button" id="chatToggle" aria-expanded="true">▼ ログを閉じる</button></div>

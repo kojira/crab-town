@@ -61,6 +61,13 @@ const CrabChat = (() => {
     return d > 1 ? Math.round(d) : 0;
   }
 
+  // The part of the page the reader actually sees: the visual viewport when
+  // the browser has one (it shrinks above the soft keyboard), else the window.
+  function appViewport(innerH: number, vv: { height: number; offsetTop?: number } | null | undefined | false) {
+    if (!vv || !(vv.height > 0)) return { height: Math.round(innerH), top: 0 };
+    return { height: Math.round(Math.min(vv.height, innerH > 0 ? innerH : vv.height)), top: Math.max(0, Math.round(vv.offsetTop || 0)) };
+  }
+
   const doc = typeof document !== "undefined" ? document : null;
   const el = doc && doc.getElementById("log");
   // el / doc are null only under node --test, where nothing below is called
@@ -69,7 +76,10 @@ const CrabChat = (() => {
   const newBtn = doc && doc.getElementById("newLines");
   const showNew = (on: boolean) => { if (newBtn) newBtn.hidden = !on; };
   if (newBtn) newBtn.onclick = () => { const el = logBox(); el.scrollTop = el.scrollHeight; showNew(false); };
-  if (el) el.addEventListener("scroll", () => { if (nearBottom()) showNew(false); });
+  // the reader was at the newest line: keep them there when the log changes size (keyboard, header folding)
+  let atEnd = true;
+  if (el) el.addEventListener("scroll", () => { atEnd = nearBottom(); if (atEnd) showNew(false); });
+  if (el && typeof ResizeObserver !== "undefined") new ResizeObserver(() => { if (atEnd) el.scrollTop = el.scrollHeight; }).observe(el);
   const hhmm = (at: number | undefined) => (at ? new Date(at * 1000) : new Date()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
   // Append one line (newest at the bottom) and keep the newest in view unless
@@ -135,21 +145,33 @@ const CrabChat = (() => {
     if (typeof CrabView !== "undefined") CrabView.layout();
   };
 
-  // Phones: keep the fixed chat panel (and its input) above the soft keyboard.
+  // Phones: the page column (body.narrow) follows the visual viewport, so the
+  // soft keyboard shrinks it from below and the chat panel -- log and input --
+  // stays in view right above the keyboard. While typing with the keyboard up
+  // the header rows fold away (body.kbup) so the log keeps its height.
   const vv = typeof window !== "undefined" && window.visualViewport;
   const box = doc && doc.getElementById("chat");
-  function lift() {
-    const k = doc!.body.classList.contains("narrow") ? keyboardInset(window.innerHeight, vv) : 0;
-    box!.style.bottom = k ? k + "px" : "";
-    if (vv) doc!.body.style.setProperty("--vv-h", Math.round(vv.height) + "px");
-  }
-  // Typing on a phone: give the log more room while the input has focus.
   const input = doc && doc.getElementById("talkText");
-  if (input && box) {
-    input.addEventListener("focus", () => { box.classList.add("focus"); box.classList.remove("closed"); if (toggle) { toggle.textContent = toggleLabel(false); toggle.setAttribute("aria-expanded", "true"); } logBox().scrollTop = logBox().scrollHeight; lift(); });
-
-    input.addEventListener("blur", () => { setTimeout(() => box.classList.remove("focus"), 150); });
+  const coarse = typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+  function lift() {
+    const b = doc!.body, narrow = b.classList.contains("narrow");
+    const v = appViewport(window.innerHeight, vv);
+    b.style.setProperty("--app-h", v.height + "px");
+    b.style.setProperty("--vv-top", v.top + "px");
+    if (vv) b.style.setProperty("--vv-h", Math.round(vv.height) + "px");
+    const focused = !!input && doc!.activeElement === input;
+    const on = narrow && focused && (coarse || keyboardInset(window.innerHeight, vv) > 0);
+    if (b.classList.contains("kbup") !== on) {
+      b.classList.toggle("kbup", on);
+      if (on) logBox().scrollTop = logBox().scrollHeight;
+    }
+    if (narrow && window.scrollY) window.scrollTo(0, 0); // iOS scrolls the page to show the input: the column is already there
   }
+  if (input && box) {
+    input.addEventListener("focus", () => { box.classList.add("focus"); box.classList.remove("closed"); if (toggle) { toggle.textContent = toggleLabel(false); toggle.setAttribute("aria-expanded", "true"); } logBox().scrollTop = logBox().scrollHeight; lift(); setTimeout(lift, 300); });
+    input.addEventListener("blur", () => { setTimeout(() => { box.classList.remove("focus"); lift(); }, 150); });
+  }
+  if (doc) { lift(); window.addEventListener("resize", lift); }
   if (vv && box) { vv.addEventListener("resize", lift); vv.addEventListener("scroll", lift); }
 
   // History across tabs: state events are ephemeral (kind 23411), relays keep
@@ -170,6 +192,6 @@ const CrabChat = (() => {
   function saveHistory(store: Pick<Storage, "setItem"> | null | undefined, list: HistItem[]) {
  try { store && store.setItem(HIST_KEY, JSON.stringify(list)); } catch { /* full / private mode */ } }
 
-  return { entry, resultText, add, system, error, setStatus, typing, keyboardInset, toggleLabel, keep, loadHistory, saveHistory, HIST_KEY };
+  return { entry, resultText, add, system, error, setStatus, typing, keyboardInset, toggleLabel, keep, loadHistory, saveHistory, appViewport, HIST_KEY };
 })();
 if (typeof module !== "undefined") module.exports = CrabChat;
