@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<!-- no maximum-scale / user-scalable=no: text zoom stays with the user (docs/town-next-ui.md 1.4) -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>crab-town next</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body data-layout="phone">
+<main id="app">
+  <section id="mapwrap" aria-label="地図">
+    <canvas id="map" role="img" aria-label="町の地図（タップで歩く・家具や人をタップで行動）"></canvas>
+    <div id="miniwrap">
+      <canvas id="mini" aria-label="ミニマップ（タップでその場所へ）"></canvas>
+      <button id="minifold" type="button" aria-label="ミニマップを畳む">×</button>
+    </div>
+    <button id="miniopen" type="button" aria-label="ミニマップを開く" hidden>▣</button>
+    <button id="recenter" type="button" aria-label="自分に戻る" hidden>◎</button>
+    <button id="login" type="button">NIP-07 でログイン</button>
+  </section>
+  <section id="side">
+    <section id="chat" aria-label="チャット">
+      <div id="chatlog" role="log" aria-live="polite"></div>
+      <button id="newpill" type="button" hidden></button>
+    </section>
+    <form id="inputbar">
+      <button id="actbtn" type="button">行動</button>
+      <input id="say" type="text" maxlength="280" autocomplete="off" enterkeyhint="send" aria-label="発言">
+      <button id="send" type="submit">送</button>
+    </form>
+  </section>
+</main>
+<div id="sheet" role="dialog" aria-labelledby="sheettitle" hidden>
+  <div id="sheethead"><b id="sheettitle"></b><button id="sheetclose" type="button" aria-label="閉じる">×</button></div>
+  <div id="sheetlist"></div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>

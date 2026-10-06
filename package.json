@@ -3,10 +3,11 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json",
-    "build": "node scripts/build-web.mjs",
-    "test": "node --test webtest/*.test.js",
-    "test:e2e": "node --test webtest/e2e/*.e2e.js"
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.next.json",
+    "build": "node scripts/build-web.mjs && node scripts/build-next-web.mjs",
+    "test": "node --test webtest/*.test.js webtest-next/*.test.js",
+    "test:e2e": "node --test webtest/e2e/*.e2e.js",
+    "test:e2e:next": "node --test webtest-next/e2e/*.e2e.js"
   },
   "devDependencies": {
     "esbuild": "0.28.2",

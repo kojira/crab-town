@@ -106,7 +106,7 @@ TOWN_NEXT_DATA=~/.crab-town/town-next.json go run ./cmd/town-next
 
 ## 未対応
 
-- town-next 用ビューア（今は既存の `web/` を配るだけ。表示はできても操作 UI は今のタウン向け）
+- town-next 用ビューアは骨組みのみ（`web-next-src/` → `internal/nextweb/static/`、`cmd/town-next` が `/` で配る。地図・移動・家具を使う・発言・区画の申請。設計は [town-next-ui.md](town-next-ui.md) 1・2 章。5 章の未決に関わる知らせ・talk・日記などは未実装）
 - Nostr リレー経由（kind 23410）の操作。今は HTTP の NIP-98 のみ
 - extgate 連携、talk（エージェントへの said）、画像
 - 家の区画そのものの追加（空き地はデータに書いた家だけ）、家の外観・内装の編集

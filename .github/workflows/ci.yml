@@ -26,12 +26,20 @@ jobs:
           git status --porcelain -- web/
           git diff --exit-code -- web/
           test -z "$(git status --porcelain -- web/)"
+      - name: generated town-next viewer matches the commit
+        run: |
+          git diff --exit-code -- internal/nextweb/static/
+          test -z "$(git status --porcelain -- internal/nextweb/static/)"
       - name: viewer tests (node --test)
         run: pnpm test
       - name: phone input e2e (Playwright WebKit, iPhone 13)
         run: |
           pnpm exec playwright install --with-deps webkit
           pnpm test:e2e
+      - name: town-next viewer e2e (real town-next server; WebKit iPhone 13 + Chromium PC)
+        run: |
+          pnpm exec playwright install --with-deps chromium
+          pnpm test:e2e:next
       - name: go build
         run: go build ./...
       - name: go vet

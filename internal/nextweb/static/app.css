@@ -1,0 +1,44 @@
+/* town-next viewer. docs/town-next-ui.md 1.1 (phone portrait), 1.2 (PC >= 1024px), 1.4 (text steps), 2 (keyboard). */
+:root { --map-h: 58svh; --chat-font: 16px; --input-font: 16px; --min-lines: 4; --line: 1.45; }
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #111318; color: #eee; font-family: system-ui, sans-serif; }
+#app { height: 100dvh; display: flex; flex-direction: column; }
+
+/* map: a fixed height that nothing (keyboard, chat, toolbar) changes */
+#mapwrap { position: relative; flex: 0 0 auto; height: var(--map-h); overflow: hidden; touch-action: pan-x pan-y pinch-zoom; }
+#map { display: block; width: 100%; height: 100%; touch-action: none; }
+#miniwrap { position: absolute; top: 8px; right: 8px; opacity: .85; background: #0008; border: 1px solid #fff6; line-height: 0; }
+#mini { display: block; cursor: pointer; }
+#minifold, #miniopen { position: absolute; top: 0; right: 0; min-width: 24px; min-height: 24px; font-size: 14px; background: #000a; color: #fff; border: 0; }
+#miniopen { top: 8px; right: 8px; min-width: 44px; min-height: 44px; }
+#recenter { position: absolute; right: 12px; bottom: 12px; width: 44px; height: 44px; border-radius: 50%; font-size: 20px; background: #000b; color: #ffd84a; border: 1px solid #ffd84a; }
+#login { position: absolute; left: 8px; top: 8px; min-height: 44px; padding: 0 12px; font-size: 14px; background: #000b; color: #fff; border: 1px solid #fff6; border-radius: 8px; }
+
+/* chat: the rest; at least --min-lines lines */
+#side { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+#chat { position: relative; flex: 1 1 auto; min-height: calc(var(--min-lines) * var(--chat-font) * var(--line) + 12px); overflow: hidden; }
+#chatlog { height: 100%; overflow-y: auto; padding: 6px 10px; font-size: var(--chat-font); line-height: var(--line); overscroll-behavior: contain; }
+#chatlog .line { word-break: break-word; }
+#chatlog .sys { color: #f7b267; }
+#newpill { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); min-height: 32px; border-radius: 16px; border: 0; background: #ffd84a; color: #222; padding: 0 12px; font-size: 14px; }
+
+/* input bar: the only element the keyboard handler writes (transform) */
+#inputbar { flex: 0 0 auto; display: flex; gap: 6px; padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); background: #1d2029; border-top: 1px solid #333; will-change: transform; }
+#actbtn, #send { min-width: 44px; min-height: 44px; font-size: 16px; border-radius: 8px; border: 1px solid #555; background: #2b2f3b; color: #fff; }
+#say { flex: 1 1 auto; min-width: 0; min-height: 44px; font-size: var(--input-font); padding: 0 10px; border-radius: 8px; border: 1px solid #555; background: #0e1015; color: #fff; }
+
+/* action sheet: from the bottom on phones, a popover in the right column on PC */
+#sheet { position: fixed; left: 0; right: 0; bottom: 0; max-height: 60svh; overflow-y: auto; background: #22252f; border-top: 1px solid #555; border-radius: 12px 12px 0 0; padding: 8px 12px calc(12px + env(safe-area-inset-bottom)); z-index: 10; }
+#sheethead { display: flex; justify-content: space-between; align-items: center; min-height: 44px; }
+#sheetclose { min-width: 44px; min-height: 44px; background: none; color: #fff; border: 0; font-size: 20px; }
+#sheetlist { display: flex; flex-direction: column; gap: 6px; }
+#sheetlist button { min-height: 44px; font-size: 16px; text-align: left; padding: 0 12px; border-radius: 8px; border: 1px solid #555; background: #2b2f3b; color: #fff; }
+#sheetlist button:disabled { opacity: .5; }
+
+/* PC: map left 70% full height, right column = chat + input bar */
+body[data-layout="pc"] #app { flex-direction: row; }
+body[data-layout="pc"] #mapwrap { width: 70%; height: 100%; }
+body[data-layout="pc"] #side { width: 30%; border-left: 1px solid #333; }
+body[data-layout="pc"] #sheet { left: auto; right: 12px; bottom: 70px; width: calc(30% - 24px); border: 1px solid #555; border-radius: 12px; max-height: 70vh; }
+[hidden] { display: none !important; }

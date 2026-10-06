@@ -9,6 +9,7 @@
 //	    TOWN_NEXT_DATA=town.json (required), TOWN_NEXT_ADDR (127.0.0.1:8788),
 //	    TOWN_NEXT_BASE_URL (http://<addr>; the NIP-98 "u" prefix clients sign),
 //	    TOWN_NEXT_TICK (250ms), TOWN_NEXT_AUTH_WINDOW (60s)
+//	    serves the town-next viewer (internal/nextweb) at / -- not the current town's web/
 package main
 
 import (
@@ -24,8 +25,8 @@ import (
 	"syscall"
 	"time"
 
-	crabtown "github.com/kojira/crab-town"
 	"github.com/kojira/crab-town/internal/next"
+	"github.com/kojira/crab-town/internal/nextweb"
 	"github.com/kojira/crab-town/internal/nostr"
 	"github.com/kojira/crab-town/internal/world"
 )
@@ -107,7 +108,7 @@ func main() {
 		log.Fatal("invalid TOWN_NEXT_AUTH_WINDOW")
 	}
 	base := env("TOWN_NEXT_BASE_URL", "http://"+addr)
-	srv := &next.Server{Town: t, Auth: &next.Verifier{BaseURL: base, Window: win}, Static: crabtown.WebFS()}
+	srv := &next.Server{Town: t, Auth: &next.Verifier{BaseURL: base, Window: win}, Static: nextweb.FS()}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
