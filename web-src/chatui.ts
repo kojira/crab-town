@@ -23,7 +23,7 @@ const CrabTalk = (() => {
       },
       signFailed(it: OutItem, err: unknown) { it.status = "failed"; it.error = String(err || "署名できなかった"); return it; },
       // the town's result for one of our events (matched by its e tag)
-      result(eventId: string, ok: boolean, error?: string): OutItem | null {
+      result(eventId: string | undefined, ok: boolean, error?: string): OutItem | null {
         const it = items.find(x => x.eventId && x.eventId === eventId);
         if (!it || it.status === "delivered") return null; // already confirmed (echo)
         if (ok) it.status = "delivered"; else { it.status = "failed"; it.error = error || "町が受け付けなかった"; }

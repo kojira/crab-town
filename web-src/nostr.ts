@@ -2,40 +2,51 @@
 // Nostr relays. Commands are ephemeral kind 23410 events signed with NIP-07
 // (window.nostr); the town answers with kind 23411 events signed by its own key.
 // Rendering is the same as the local viewer (sprites/furniture/floor/props/town/render.js).
-import { verifyEvent } from "https://esm.sh/nostr-tools@2.17.0/pure";
-import { decode } from "https://esm.sh/nostr-tools@2.17.0/nip19";
+// nostr-tools comes from web/nostr-tools.js (bundled locally, see web-src/vendor).
+const { verifyEvent, decode, generateSecretKey, finalizeEvent } = NostrTools;
+export {}; // a module (type="module" in nostr.html): its names stay out of the classic scripts' global scope
 
 const KIND_COMMAND = 23410, KIND_STATE = 23411;
 const cfg = window.CRAB_NOSTR || {};
 const qs = new URLSearchParams(location.search);
-const hexOf = (s) => (s && s.startsWith("npub1") ? decode(s).data : s || "").toLowerCase();
+const hexOf = (s: string | null | undefined): string => (s && s.startsWith("npub1") ? npubHex(s) : s || "").toLowerCase();
 const TOWN = hexOf(qs.get("town") || cfg.town);
 const RELAYS = (qs.get("relays") || (cfg.relays || []).join(",")).split(",").map(s => s.trim()).filter(Boolean);
 // nostarou's room: the bed side of the bedroom (owner-only zone, so the public
 // view frosts it: he walks in and disappears behind the curtain).
 const ROOM_SPOT = cfg.roomSpot || { x: 29, y: 15 };
 
-const seen = new Set(); // state event ids already applied (several relays deliver the same event)
+// npub1... -> hex (nip19 decode; anything but an npub is a config error)
+function npubHex(s: string): string {
+  const r = decode(s);
+  if (r.type !== "npub") throw new Error("town: not an npub: " + s);
+  return r.data;
+}
+
+const seen = new Set<string>(); // state event ids already applied (several relays deliver the same event)
 // chat history kept in the browser (relays drop the ephemeral state events within minutes)
 const store = (() => { try { return window.localStorage; } catch { return null; } })();
 let chatHistory = CrabChat.loadHistory(store);
-const sockets = [];
-let me = null; // NIP-07 pubkey, once known
-let myActor = null; // the owner's own avatar (set once the town answers "owner")
+// one relay connection; eose = its stored events have all arrived
+interface Sock { url: string; ws: WebSocket | null; open: boolean; eose?: boolean }
+const sockets: Sock[] = [];
+let me: string | null = null; // NIP-07 pubkey, once known
+let myActor: string | null = null; // the owner's own avatar (set once the town answers "owner")
 // "you" in the chat is only the logged-in pubkey's own talk. nostarou moves
 // and speaks by itself (extgate); the owner walks their own avatar.
 const LISTENING = cfg.listening || []; // actors someone receives knocks for (extgate)
 const knockList = () => CrabViewport.knockTargets(Object.values(rooms)[0], actors, LISTENING);
 const chatCtx = () => ({ selfGuestId: me ? "nostr:" + me.slice(0, 16) : null, houses: knockList() });
 
-const $ = (id) => document.getElementById(id);
+// the page's own elements (nostr.html): always there
+const $ = <E extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as E;
 const relaysEl = $("relays");
-function say(s) { CrabChat.system(s); }
+function say(s: string) { CrabChat.system(s); }
 function updateStatus() {
   statusEl.textContent = Object.values(actors)
     .map(a => a.hidden ? `${a.name}: (見えない場所にいる)` : `${a.name}: ${a.state} @ ${a.pos.x},${a.pos.y}`).join(" / ") || "waiting for the town...";
 }
-function inHidden(r, p) {
+function inHidden(r: Room | undefined, p: Pos) {
   return !!r && (r.hidden_zones || []).some(id => {
     const z = (r.zones || []).find(z => z.id === id);
     return z && p && p.x >= z.rect.x && p.y >= z.rect.y && p.x < z.rect.x + z.rect.w && p.y < z.rect.y + z.rect.h;
@@ -43,7 +54,7 @@ function inHidden(r, p) {
 }
 
 // apply one world message (same shapes as the local /world WebSocket)
-function apply(ev) {
+function apply(ev: WorldMsg) {
   if (ev.type === "snapshot") {
     rooms = {}; actors = {};
     for (const r of ev.rooms) rooms[r.id] = r;
@@ -79,9 +90,9 @@ function apply(ev) {
 }
 
 // A logged-in person's actor carries its pubkey: fetch its kind:0 (r/n/x relays).
-function loadAvatar(a) { if (a && a.pubkey) CrabAvatar.load(a.pubkey, RELAYS, verifyEvent); }
+function loadAvatar(a: Actor | undefined) { if (a && a.pubkey) CrabAvatar.load(a.pubkey, RELAYS, verifyEvent); }
 // the owner's avatar id: the same id its talk and knock carry
-const ownAvatarId = (pk) => "nostr:" + pk.slice(0, 16);
+const ownAvatarId = (pk: string) => "nostr:" + pk.slice(0, 16);
 
 // The knock menu lists every house; a house nobody listens at says so.
 let knockKey = "";
@@ -89,49 +100,51 @@ function updateKnockTargets() {
   const ts = knockList(), key = ts.map(t => t.id + t.label + t.reachable).join("|");
   if (!ts.length || key === knockKey) return;
   knockKey = key;
-  const sel = $("knockTo"), cur = sel.value;
+  const sel = $<HTMLSelectElement>("knockTo"), cur = sel.value;
   sel.replaceChildren(...ts.map(t => new Option(t.label + (t.reachable ? "" : "（不在・記録のみ）"), t.id)));
   if (ts.some(t => t.id === cur)) sel.value = cur;
 }
 
-function onState(ev) {
+function onState(ev: NostrEvent) {
   if (ev.kind !== KIND_STATE || ev.pubkey !== TOWN || seen.has(ev.id)) return;
   if (!verifyEvent(ev)) { say("dropped a state event with a bad signature"); return; }
   seen.add(ev.id);
   if (seen.size > 5000) seen.clear();
-  let msg;
+  let msg: WorldMsg;
   try { msg = JSON.parse(ev.content); } catch { return; }
-  const tag = (k) => (ev.tags.find(t => t[0] === k) || [])[1];
+  const tag = (k: string): string | undefined => (ev.tags.find(t => t[0] === k) || [])[1];
   if (msg.type === "result") { msg.p = tag("p"); msg.e = tag("e"); }
   if (msg.type === "say" && !msg.reply_to && tag("reply_to")) msg.reply_to = tag("reply_to");
-  msg.at = ev.created_at; msg.created_at = ev.created_at;
+  const stamped = Object.assign(msg, { at: ev.created_at, created_at: ev.created_at });
   const kept = CrabChat.keep(chatHistory, { id: ev.id, msg });
   if (kept !== chatHistory) { chatHistory = kept; CrabChat.saveHistory(store, chatHistory); }
   // stored events replayed before EOSE arrive in any order: sort them first
-  if (!live) { backlog.push(msg); return; }
+  if (!live) { backlog.push(stamped); return; }
+
   applyOne(msg);
 }
-function applyOne(msg) {
-  if (msg.type === "snapshot" && msg.created_at < (applyOne.snapAt || 0)) return; // older snapshot
-  if (msg.type === "snapshot") applyOne.snapAt = msg.created_at;
+let snapAt = 0; // created_at of the newest snapshot applied
+function applyOne(msg: WorldMsg) {
+  if (msg.type === "snapshot" && (msg.created_at || 0) < snapAt) return; // older snapshot
+  if (msg.type === "snapshot") snapAt = msg.created_at || 0;
   apply(msg);
 }
 
 // History: buffer until every open relay sent EOSE (or 2.5 s after the
 // first one), then draw it oldest first. Later events are drawn as they come.
 let live = false;
-const backlog = [];
+const backlog: (WorldMsg & { created_at: number })[] = [];
 // lines saved by an earlier tab join the backlog (sorted with what the relays still have)
-for (const h of chatHistory) { seen.add(h.id); backlog.push(Object.assign({}, h.msg, { replay: true })); }
-let flushTimer = null;
-function onEose(s) {
+for (const h of chatHistory) { seen.add(h.id); backlog.push({ ...h.msg, created_at: h.msg.created_at || 0, replay: true }); }
+let flushTimer: ReturnType<typeof setTimeout> | undefined;
+function onEose(s: Sock) {
   s.eose = true;
   if (live) return;
   if (sockets.every(x => x.eose || !x.open)) flushBacklog();
   else if (!flushTimer) flushTimer = setTimeout(flushBacklog, 2500);
 }
 let loginTried = false;
-function flushBacklog(force) {
+function flushBacklog(force?: boolean) {
   if (live) return;
   // wait for the NIP-07 pubkey so history can say which lines were "you"
   if (!force && window.nostr && !loginTried) { setTimeout(flushBacklog, 300); return; }
@@ -141,8 +154,8 @@ function flushBacklog(force) {
 }
 setTimeout(() => flushBacklog(true), 8000); // a relay that never sends EOSE does not hold the page
 
-function connect(url) {
-  const s = { url, ws: null, open: false };
+function connect(url: string) {
+  const s: Sock = { url, ws: null, open: false };
   sockets.push(s);
   const open = () => {
     const ws = new WebSocket(url);
@@ -153,11 +166,11 @@ function connect(url) {
       relaysEl.textContent = sockets.map(x => (x.open ? "●" : "○") + " " + x.url).join("  ");
       requestSnapshot();
     };
-    ws.onmessage = (m) => {
-      let d; try { d = JSON.parse(m.data); } catch { return; }
-      if (d[0] === "EVENT" && d[2]) onState(d[2]);
+    ws.onmessage = (m: MessageEvent<string>) => {
+      let d: [string, ...unknown[]]; try { d = JSON.parse(m.data); } catch { return; }
+      if (d[0] === "EVENT" && d[2]) onState(d[2] as NostrEvent);
       else if (d[0] === "EOSE") onEose(s);
-      else if (d[0] === "OK" && d[2] === false) relayRejected(d[1], url, d[3]);
+      else if (d[0] === "OK" && d[2] === false) relayRejected(String(d[1]), url, String(d[3]));
     };
     ws.onclose = () => { s.open = false; s.eose = false; relaysEl.textContent = sockets.map(x => (x.open ? "●" : "○") + " " + x.url).join("  "); setTimeout(open, 3000); };
   };
@@ -166,12 +179,13 @@ function connect(url) {
 
 // Commands need a signature. Without NIP-07 a throwaway key signs snapshot
 // requests only (the town answers anyone with the public view).
-let anonKey = null;
-async function sign(tmpl) {
+let anonKey: Uint8Array | null = null;
+type Template = { kind: number; created_at: number; tags: string[][]; content: string };
+async function sign(tmpl: Template): Promise<NostrEvent> {
   if (window.nostr) return window.nostr.signEvent(tmpl);
   if (tmpl.content.includes('"snapshot"')) {
-    const { generateSecretKey, finalizeEvent } = await import("https://esm.sh/nostr-tools@2.17.0/pure");
     anonKey ||= generateSecretKey();
+
     return finalizeEvent(tmpl, anonKey);
   }
   throw new Error("NIP-07 (window.nostr) が必要");
@@ -179,54 +193,60 @@ async function sign(tmpl) {
 
 // Publish one command. Returns { ev, n } (n = relays it went to) or throws
 // when it could not be signed. No line is written: callers report failures.
-async function publish(cmd) {
+// a command to the town (kind 23410 content)
+type Command = { type: string; [k: string]: unknown };
+async function publish(cmd: Command) {
   const tmpl = { kind: KIND_COMMAND, created_at: Math.floor(Date.now() / 1000), tags: [["p", TOWN], ["t", "crab-town"]], content: JSON.stringify(cmd) };
   const ev = await sign(tmpl);
   let n = 0;
-  for (const s of sockets) if (s.open) { try { s.ws.send(JSON.stringify(["EVENT", ev])); n++; } catch { /* closing */ } }
+  for (const s of sockets) if (s.open && s.ws) { try { s.ws.send(JSON.stringify(["EVENT", ev])); n++; } catch { /* closing */ } }
   return { ev, n };
 }
 // Commands other than talk: only failures are worth a line.
-async function send(cmd) {
+const errText = (e: unknown) => (e instanceof Error && e.message) || String(e);
+async function send(cmd: Command) {
   let r;
-  try { r = await publish(cmd); } catch (e) { if (cmd.type !== "snapshot") CrabChat.error(`${cmd.type}: ${e.message || e}`); return; }
+  try { r = await publish(cmd); } catch (e) { if (cmd.type !== "snapshot") CrabChat.error(`${cmd.type}: ${errText(e)}`); return; }
   if (r.n === 0 && cmd.type !== "snapshot") CrabChat.error(`${cmd.type}: つながっているリレーが無いので送れなかった`);
 }
 
 // ---- talk: shown at once, 送信中… -> 届いた, input cleared only when it is in ----
 const outbox = CrabTalk.outbox();
-const rows = new Map(); // outbox key -> log row
+const rows = new Map<number, HTMLElement | undefined>(); // outbox key -> log row
 const TALK_TIMEOUT_MS = 20000, TYPING_MAX_MS = 120000;
 const talkActor = () => cfg.talkTo || "nostarou";
 const talkName = () => (actors[talkActor()] && actors[talkActor()].name) || "のすたろう";
-let typingTimer = null;
-function showStatus(it) {
+type OutItem = ReturnType<typeof outbox.add>;
+let typingTimer: ReturnType<typeof setTimeout> | undefined;
+function showStatus(it: OutItem) {
   CrabChat.setStatus(rows.get(it.key), it.status, CrabTalk.STATUS_TEXT[it.status], it.error, () => talk(it.text, it));
 }
-function delivered(it) {
+const talkIn = $<HTMLInputElement>("talkText");
+function delivered(it: OutItem) {
   showStatus(it);
-  if ($("talkText").value.trim() === it.text) $("talkText").value = "";
+  if (talkIn.value.trim() === it.text) talkIn.value = "";
   CrabChat.typing(talkName());
   clearTimeout(typingTimer);
   typingTimer = setTimeout(() => CrabChat.typing(""), TYPING_MAX_MS);
 }
-function failed(it) { showStatus(it); $("talkText").focus({ preventScroll: true }); }
-function onTalkResult(ev) {
+function failed(it: OutItem) { showStatus(it); talkIn.focus({ preventScroll: true }); }
+function onTalkResult(ev: ResultMsg) {
   const it = outbox.items.find(x => x.eventId === ev.e);
+  if (!it) return;
   if (it.status === "delivered") delivered(it); else failed(it);
 }
-function relayRejected(id, url, why) {
+function relayRejected(id: string, url: string, why: string) {
   const it = outbox.items.find(x => x.eventId === id);
   if (!it) { CrabChat.error(`${url} に拒否された: ${why}`); return; }
   // other relays may still carry it: the town's result decides
 }
-async function talk(text, again) {
+async function talk(text: string, again?: OutItem) {
   const it = again || outbox.add(text);
   if (again) { it.status = "sending"; it.error = ""; it.eventId = ""; showStatus(it); }
   else rows.set(it.key, CrabChat.add({ kind: "self", who: "あなた", to: "", text }));
   showStatus(it);
   let r;
-  try { r = await publish({ type: "talk", text }); } catch (e) { outbox.signFailed(it, e.message || e); failed(it); return; }
+  try { r = await publish({ type: "talk", text }); } catch (e) { outbox.signFailed(it, errText(e)); failed(it); return; }
   outbox.sent(it, r.ev.id, r.n);
   if (it.status === "failed") { failed(it); return; }
   const id = r.ev.id;
@@ -235,23 +255,23 @@ async function talk(text, again) {
   }, TALK_TIMEOUT_MS);
 }
 
-let snapTimer = null;
+let snapTimer: ReturnType<typeof setTimeout> | undefined;
 function requestSnapshot() {
   clearTimeout(snapTimer);
   snapTimer = setTimeout(() => send({ type: "snapshot" }), 300); // once for all relays opening together
 }
 
 // Without NIP-07 the input stays off; say why where the reader looks.
-function setHint(loggedIn) {
-  $("talkText").placeholder = CrabTalk.inputHint(loggedIn);
-  const h = $("talkHint");
+function setHint(loggedIn: boolean) {
+  talkIn.placeholder = CrabTalk.inputHint(loggedIn);
+  const h = document.getElementById("talkHint");
   if (h) h.hidden = loggedIn;
 }
 async function login() {
   if (!window.nostr) { CrabChat.error("NIP-07 拡張が見つからない。" + CrabTalk.HINT_LOGIN + "（今は閲覧のみ）"); setHint(false); return; }
   try { me = await window.nostr.getPublicKey(); } catch (e) { CrabChat.error("NIP-07: " + e); return; } finally { loginTried = true; }
   $("who").textContent = me.slice(0, 12) + "…";
-  for (const b of document.querySelectorAll(".cmd")) b.disabled = false;
+  for (const b of document.querySelectorAll<HTMLButtonElement>(".cmd")) b.disabled = false;
   setHint(true);
   CrabAvatar.load(me, RELAYS, verifyEvent);
   requestSnapshot(); // a signed command: the owner's avatar joins the garden
@@ -268,15 +288,17 @@ $("login").onclick = login;
 $("toRoom").onclick = () => send({ type: "move", ...ROOM_SPOT });
 $("toGarden").onclick = () => send({ type: "move", x: 24, y: 4 });
 $("knock").onclick = () => {
-  const t = knockList().find(x => x.id === $("knockTo").value);
-  send({ type: "knock", room: $("knockTo").value || "nostarou-house", message: "こんにちは" });
+  const to = $<HTMLSelectElement>("knockTo").value;
+  const t = knockList().find(x => x.id === to);
+  send({ type: "knock", room: to || "nostarou-house", message: "こんにちは" });
   if (t && !t.reachable) say(`${t.ownerName}は今つながっていないので、${t.label}へのノックは${t.ownerName}には届かない（町の出来事として記録されるだけ）`);
 };
 $("resync").onclick = () => send({ type: "snapshot" });
 // talk: plain text, public, up to 280 characters (the town refuses longer)
 $("talkForm").onsubmit = (e) => {
   e.preventDefault();
-  const text = $("talkText").value.trim();
+  const text = talkIn.value.trim();
+
   if (!text) return;
   if ([...text].length > 280) { CrabChat.error("talk: 280文字まで"); return; }
   talk(text);

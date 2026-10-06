@@ -67,3 +67,5 @@ declare var module: { exports: unknown } | undefined;
 // ---- Nostr ----
 interface NostrEvent { id: string; pubkey: string; sig: string; kind: number; created_at: number; tags: string[][]; content: string }
 type VerifyFn = (ev: NostrEvent) => boolean;
+// web/nostr-tools.js (classic script, loaded before nostr.js)
+declare const NostrTools: typeof import("./vendor/nostr-tools");
