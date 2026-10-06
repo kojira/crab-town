@@ -24,6 +24,8 @@
       <div id="chatlog" role="log" aria-live="polite"></div>
       <button id="newpill" type="button" hidden></button>
     </section>
+    <!-- rule 6 (docs/town-next-ui.md 2): the newest chat lines over the lifted input bar while the keyboard is up -->
+    <div id="peek" aria-hidden="true" hidden></div>
     <form id="inputbar">
       <button id="actbtn" type="button">行動</button>
       <input id="say" type="text" maxlength="280" autocomplete="off" enterkeyhint="send" aria-label="発言">

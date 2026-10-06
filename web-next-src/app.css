@@ -23,6 +23,11 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #111318; col
 #chatlog .sys { color: #f7b267; }
 #newpill { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); min-height: 32px; border-radius: 16px; border: 0; background: #ffd84a; color: #222; padding: 0 12px; font-size: 14px; }
 
+/* rule 6: the chat peek, over the map, right above the lifted input bar (top is set from visualViewport) */
+#peek { position: fixed; left: 0; right: 0; z-index: 5; padding: 4px 10px; background: #111318e6; border-top: 1px solid #333; font-size: var(--chat-font); line-height: calc(var(--chat-font) * var(--line)); pointer-events: none; }
+#peek .line { height: calc(var(--chat-font) * var(--line)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#peek .sys { color: #f7b267; }
+
 /* input bar: the only element the keyboard handler writes (transform) */
 #inputbar { flex: 0 0 auto; display: flex; gap: 6px; padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); background: #1d2029; border-top: 1px solid #333; will-change: transform; }
 #actbtn, #send { min-width: 44px; min-height: 44px; font-size: 16px; border-radius: 8px; border: 1px solid #555; background: #2b2f3b; color: #fff; }

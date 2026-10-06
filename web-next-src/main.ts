@@ -39,7 +39,7 @@ function applyLayout() {
   r.setProperty("--input-font", `${s.input}px`);
   r.setProperty("--min-lines", String(s.minLines));
   resizeCanvas();
-  if (lift) padChat(); // the chat box / line height may have changed with the step
+  if (lift) { padChat(); placePeek(); } // the chat box / line height may have changed with the step
 }
 function resizeCanvas() {
   const wrap = $("mapwrap").getBoundingClientRect();
@@ -147,6 +147,7 @@ function addChat(line: C.ChatLine | { system: string }) {
   }
   log.append(div);
   if (follow) log.scrollTop = log.scrollHeight;
+  if (lift) placePeek();
   else { unread++; const p = $("newpill"); p.textContent = `新着 ${unread} 件`; p.hidden = false; }
 }
 $("chatlog").addEventListener("scroll", () => {
@@ -262,6 +263,22 @@ function onViewport() {
   lift = next;
   $("inputbar").style.transform = lift ? `translateY(${-lift}px)` : "";
   padChat();
+  placePeek();
+}
+// rule 6: the newest lines right above the lifted bar, inside visualViewport
+function placePeek() {
+  const peek = $("peek"), vv = window.visualViewport;
+  const log = $("chatlog"), lcs = getComputedStyle(log), pcs = getComputedStyle(peek);
+  const p = lift && vv ? C.chatPeek(
+    { height: vv.height, offsetTop: vv.offsetTop, scale: vv.scale },
+    $("inputbar").offsetHeight, $("chat").getBoundingClientRect().top, parseFloat(lcs.paddingTop),
+    parseFloat(pcs.lineHeight), parseFloat(pcs.paddingTop), lift) : null;
+  if (!p) { peek.hidden = true; peek.replaceChildren(); return; }
+  const src = Array.from(log.querySelectorAll(".line")).slice(-p.lines);
+  if (src.length === 0) { peek.hidden = true; peek.replaceChildren(); return; }
+  peek.replaceChildren(...src.map((l) => l.cloneNode(true)));
+  peek.style.top = `${p.top + (p.lines - src.length) * parseFloat(pcs.lineHeight)}px`;
+  peek.hidden = false;
 }
 // rule 5: room = the log's box (= #chat, never resized) minus its top padding
 function padChat() {
