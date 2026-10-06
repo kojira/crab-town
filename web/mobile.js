@@ -19,12 +19,12 @@ const CrabView = (() => {
     const c = content();
     scrollTo(V.centerOn(tx, ty, st.tile, stage.clientWidth, stage.clientHeight, c.w, c.h));
   }
-  let laidW = -1;
-  const typing = () => document.activeElement && document.activeElement.id === "talkText";
+  let laidKey = "";
   function layout() {
     const cw = document.documentElement.clientWidth;
-    if (typing() && st.mode === "scroll" && cw === laidW) return;
-    laidW = cw;
+    const key = cw + "x" + townW() + "x" + townH();
+    if (st.mode === "scroll" && key === laidKey) return;
+    laidKey = key;
     const availW = cw - 16;
     const mode = V.chooseMode(availW, townW());
     if (mode !== st.mode) {
