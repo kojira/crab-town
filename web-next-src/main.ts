@@ -39,6 +39,7 @@ function applyLayout() {
   r.setProperty("--input-font", `${s.input}px`);
   r.setProperty("--min-lines", String(s.minLines));
   resizeCanvas();
+  if (lift) padChat(); // the chat box / line height may have changed with the step
 }
 function resizeCanvas() {
   const wrap = $("mapwrap").getBoundingClientRect();
@@ -260,8 +261,14 @@ function onViewport() {
   if (next === null || !C.needsWrite(lift, next)) return;
   lift = next;
   $("inputbar").style.transform = lift ? `translateY(${-lift}px)` : "";
-  const log = $("chatlog");
-  log.style.paddingBottom = lift ? `${lift}px` : "";
+  padChat();
+}
+// rule 5: room = the log's box (= #chat, never resized) minus its top padding
+function padChat() {
+  const log = $("chatlog"), cs = getComputedStyle(log);
+  const room = $("chat").clientHeight - parseFloat(cs.paddingTop);
+  const pad = lift ? C.chatPad(lift, room, parseFloat(cs.lineHeight)) : 0;
+  log.style.paddingBottom = pad ? `${pad}px` : "";
   if (follow) log.scrollTop = log.scrollHeight;
 }
 window.visualViewport?.addEventListener("resize", onViewport);
