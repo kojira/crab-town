@@ -27,12 +27,13 @@ const CrabViewport = (() => {
     return tileSize(availH, townH, SCROLL_MIN_TILE, MAX_TILE);
   }
 
-  // Height of the map stage: everything between its top and what must stay
-  // visible under it (status lines + the fixed chat panel), so no empty band
-  // is left between the map and the chat. Never below minH.
-  function stageHeight(innerH: number, top: number, below: number, chatH: number, minH = 160) {
-    const h = Math.floor(innerH - top - below - chatH);
-    return Math.max(minH, h > 0 ? h : 0);
+  // Phones: the map stage's height in a page column of appH px whose map starts
+  // at top. The chat panel under it gets the rest, so the map takes only
+  // `share` of the space below the header (never below minH, never taller than
+  // the town at maxH). Nothing is left between the map and the chat.
+  function phoneStageHeight(appH: number, top: number, maxH: number, share = 0.4, minH = 140) {
+    const h = Math.floor((appH - top) * share);
+    return Math.max(minH, Math.min(maxH > 0 ? maxH : h, h > 0 ? h : 0));
   }
 
   // Clamp a scroll offset so the view stays inside the content. When the
@@ -121,6 +122,6 @@ const CrabViewport = (() => {
     return { x: Math.floor(mx / mScale), y: Math.floor(my / mScale) };
   }
 
-  return { MIN_TILE, MAX_TILE, SCROLL_MIN_TILE, labelScale, scrollTile, stageHeight, knockTargets, chooseMode, tileSize, clampView, centerOn, gardenZone, initialFocus, jumpTargets, minimapScale, minimapFrame, minimapToTile };
+  return { MIN_TILE, MAX_TILE, SCROLL_MIN_TILE, labelScale, scrollTile, phoneStageHeight, knockTargets, chooseMode, tileSize, clampView, centerOn, gardenZone, initialFocus, jumpTargets, minimapScale, minimapFrame, minimapToTile };
 })();
 if (typeof module !== "undefined") module.exports = CrabViewport;

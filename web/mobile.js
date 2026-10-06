@@ -36,14 +36,9 @@ const CrabView = (() => {
       window.LABEL_SCALE = 1;
       return;
     }
-    const chat = document.getElementById("chat"), chatH = chat ? chat.offsetHeight : 0;
-    document.body.style.setProperty("--chat-h", chatH + "px");
-    const top = stage.getBoundingClientRect().top + window.scrollY;
-    const below = ["status", "relays"].reduce((s, id) => {
-      const e = document.getElementById(id);
-      return s + (e ? e.offsetHeight + 4 : 0);
-    }, 4);
-    const stageH = V.stageHeight(window.innerHeight, top, below, chatH);
+    const appH = document.body.clientHeight || window.innerHeight;
+    const top = stage.getBoundingClientRect().top - document.body.getBoundingClientRect().top;
+    const stageH = V.phoneStageHeight(appH, top, townH() * V.SCROLL_MIN_TILE);
     const keep = scrollPos(), old = st.tile;
     st.tile = V.scrollTile(stageH, townH());
     window.LABEL_SCALE = V.labelScale(st.tile);

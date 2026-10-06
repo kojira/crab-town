@@ -47,6 +47,10 @@ const CrabChat = (() => {
     const d = innerH - (vv2.height + (vv2.offsetTop || 0));
     return d > 1 ? Math.round(d) : 0;
   }
+  function appViewport(innerH, vv2) {
+    if (!vv2 || !(vv2.height > 0)) return { height: Math.round(innerH), top: 0 };
+    return { height: Math.round(Math.min(vv2.height, innerH > 0 ? innerH : vv2.height)), top: Math.max(0, Math.round(vv2.offsetTop || 0)) };
+  }
   const doc = typeof document !== "undefined" ? document : null;
   const el = doc && doc.getElementById("log");
   function nearBottom() {
@@ -62,9 +66,14 @@ const CrabChat = (() => {
     el2.scrollTop = el2.scrollHeight;
     showNew(false);
   };
+  let atEnd = true;
   if (el) el.addEventListener("scroll", () => {
-    if (nearBottom()) showNew(false);
+    atEnd = nearBottom();
+    if (atEnd) showNew(false);
   });
+  if (el && typeof ResizeObserver !== "undefined") new ResizeObserver(() => {
+    if (atEnd) el.scrollTop = el.scrollHeight;
+  }).observe(el);
   const hhmm = (at) => (at ? new Date(at * 1e3) : /* @__PURE__ */ new Date()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   function logBox() {
     return el;
@@ -142,12 +151,22 @@ const CrabChat = (() => {
   };
   const vv = typeof window !== "undefined" && window.visualViewport;
   const box = doc && doc.getElementById("chat");
-  function lift() {
-    const k = doc.body.classList.contains("narrow") ? keyboardInset(window.innerHeight, vv) : 0;
-    box.style.bottom = k ? k + "px" : "";
-    if (vv) doc.body.style.setProperty("--vv-h", Math.round(vv.height) + "px");
-  }
   const input = doc && doc.getElementById("talkText");
+  const coarse = typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+  function lift() {
+    const b = doc.body, narrow = b.classList.contains("narrow");
+    const v = appViewport(window.innerHeight, vv);
+    b.style.setProperty("--app-h", v.height + "px");
+    b.style.setProperty("--vv-top", v.top + "px");
+    if (vv) b.style.setProperty("--vv-h", Math.round(vv.height) + "px");
+    const focused = !!input && doc.activeElement === input;
+    const on = narrow && focused && (coarse || keyboardInset(window.innerHeight, vv) > 0);
+    if (b.classList.contains("kbup") !== on) {
+      b.classList.toggle("kbup", on);
+      if (on) logBox().scrollTop = logBox().scrollHeight;
+    }
+    if (narrow && window.scrollY) window.scrollTo(0, 0);
+  }
   if (input && box) {
     input.addEventListener("focus", () => {
       box.classList.add("focus");
@@ -158,10 +177,18 @@ const CrabChat = (() => {
       }
       logBox().scrollTop = logBox().scrollHeight;
       lift();
+      setTimeout(lift, 300);
     });
     input.addEventListener("blur", () => {
-      setTimeout(() => box.classList.remove("focus"), 150);
+      setTimeout(() => {
+        box.classList.remove("focus");
+        lift();
+      }, 150);
     });
+  }
+  if (doc) {
+    lift();
+    window.addEventListener("resize", lift);
   }
   if (vv && box) {
     vv.addEventListener("resize", lift);
@@ -188,6 +215,6 @@ const CrabChat = (() => {
     } catch {
     }
   }
-  return { entry, resultText, add, system, error, setStatus, typing, keyboardInset, toggleLabel, keep, loadHistory, saveHistory, HIST_KEY };
+  return { entry, resultText, add, system, error, setStatus, typing, keyboardInset, toggleLabel, keep, loadHistory, saveHistory, appViewport, HIST_KEY };
 })();
 if (typeof module !== "undefined") module.exports = CrabChat;

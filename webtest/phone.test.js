@@ -32,12 +32,12 @@ test("canvas labels are enlarged when tiles are shown below native size", () => 
   assert.equal(V.labelScale(0), 1);
 });
 
-test("the map stage fills the height down to the chat panel (no empty band)", () => {
-  // innerH 659, stage top 161, status+relays 48, chat 244 -> 206
-  assert.equal(V.stageHeight(659, 161, 48, 244), 206);
-  assert.equal(V.stageHeight(553, 161, 48, 300), 160); // never below the minimum
-  // the stage height does not depend on the town height any more
-  assert.equal(V.stageHeight(900, 100, 50, 250), 500);
+test("phone map takes a share of the column; the chat panel gets the rest", () => {
+  // 664px column, map starts at 117: 40% of the 547px below -> 218
+  assert.equal(V.phoneStageHeight(664, 117, 480), 218);
+  assert.equal(V.phoneStageHeight(400, 117, 480), 140); // never below the minimum
+  assert.equal(V.phoneStageHeight(2000, 100, 480), 480); // never taller than the town
+  assert.equal(V.stageHeight, undefined); // the old "fill down to a fixed chat panel" sizing is gone
 });
 
 test("say lines name the actor; only the viewer's own talk is \"あなた\"", () => {

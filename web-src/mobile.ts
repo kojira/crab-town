@@ -37,12 +37,11 @@ const CrabView = (() => {
     const mode = V.chooseMode(availW, townW());
     if (mode !== st.mode) { st.mode = mode; document.body.classList.toggle("narrow", mode === "scroll"); }
     if (mode === "fit") { cv.style.width = cv.style.height = stage.style.height = ""; window.LABEL_SCALE = 1; return; }
-    const chat = document.getElementById("chat"), chatH = chat ? chat.offsetHeight : 0;
-    document.body.style.setProperty("--chat-h", chatH + "px");
-    const top = stage.getBoundingClientRect().top + window.scrollY;
-    // the status / relay lines sit between the map and the chat panel
-    const below = ["status", "relays"].reduce((s, id) => { const e = document.getElementById(id); return s + (e ? e.offsetHeight + 4 : 0); }, 4);
-    const stageH = V.stageHeight(window.innerHeight, top, below, chatH);
+    // Phones: the page is a column the height of the visual viewport; the map
+    // takes its share and the chat panel (flex) every pixel below it.
+    const appH = document.body.clientHeight || window.innerHeight;
+    const top = stage.getBoundingClientRect().top - document.body.getBoundingClientRect().top;
+    const stageH = V.phoneStageHeight(appH, top, townH() * V.SCROLL_MIN_TILE);
     const keep = scrollPos(), old = st.tile;
     st.tile = V.scrollTile(stageH, townH());
     window.LABEL_SCALE = V.labelScale(st.tile);
