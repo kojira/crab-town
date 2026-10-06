@@ -27,12 +27,15 @@ const CrabView = (() => {
   // While the talk input has focus a phone keyboard shrinks the window height:
   // keep the map as it is (re-tiling then would jump and squash it). Every
   // caller (resize, world events, the chat toggle) goes through this guard.
-  let laidW = -1;
-  const typing = () => document.activeElement && document.activeElement.id === "talkText";
+  // Phones: re-tile only when the width or the town size changes. iOS Safari
+  // changes the height on every scroll (address bar) and with the keyboard;
+  // re-laying out then made the map flicker.
+  let laidKey = "";
   function layout() {
     const cw = document.documentElement.clientWidth;
-    if (typing() && st.mode === "scroll" && cw === laidW) return;
-    laidW = cw;
+    const key = cw + "x" + townW() + "x" + townH();
+    if (st.mode === "scroll" && key === laidKey) return;
+    laidKey = key;
     const availW = cw - 16;
     const mode = V.chooseMode(availW, townW());
     if (mode !== st.mode) { st.mode = mode; document.body.classList.toggle("narrow", mode === "scroll"); }
