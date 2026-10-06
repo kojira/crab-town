@@ -155,6 +155,7 @@ type Event struct {
 	To        string     `json:"to,omitempty"`       // talk: the actor spoken to
 	Role      string     `json:"role,omitempty"`     // talk: owner | guest (as the caller was verified)
 	ReplyTo   string     `json:"reply_to,omitempty"` // say: the talker (by) the words answer
+	Image     string     `json:"image,omitempty"`    // talk: an https image URL (owner only)
 	// occupancy events only: occupied private zones, and (per viewer) hidden zones
 	InUse       []string `json:"in_use,omitempty"`
 	HiddenZones []string `json:"hidden_zones,omitempty"`

@@ -339,3 +339,30 @@ func nextOf(evs <-chan world.Event, typ string) world.Event {
 		}
 	}
 }
+
+// Image talks (issue #20): the owner's goes through with the URL; a guest's is
+// refused by the town even though the guest signed a well-formed command.
+func TestOnlyOwnerMayPostImage(t *testing.T) {
+	f := newFixture(t)
+	f.h.TalkTo = "nostarou"
+	evs, cancel := f.h.World.Subscribe()
+	defer cancel()
+	const img = `{"type":"talk","text":"","image":"https://blossom.example/abcd.png"}`
+	res := f.h.Handle(f.cmd(t, f.guest, img, 0))
+	if res.Role != RoleGuest || !res.Reply || !errors.Is(res.Err, world.ErrForbidden) {
+		t.Fatalf("guest image: %+v", res)
+	}
+	if ev := nextOf(evs, world.EventTalk); ev.Type != "" {
+		t.Fatalf("guest image reached the world: %+v", ev)
+	}
+	res = f.h.Handle(f.cmd(t, f.owner, img, 0))
+	if res.Err != nil || res.Role != RoleOwner {
+		t.Fatalf("owner image: %+v", res)
+	}
+	if ev := nextOf(evs, world.EventTalk); ev.Image != "https://blossom.example/abcd.png" || ev.Role != RoleOwner {
+		t.Fatalf("owner image event: %+v", ev)
+	}
+	if res := f.h.Handle(f.cmd(t, f.owner, `{"type":"talk","image":"http://x.example/a.png"}`, 0)); !errors.Is(res.Err, world.ErrBadImage) {
+		t.Fatalf("owner http image: %+v", res)
+	}
+}

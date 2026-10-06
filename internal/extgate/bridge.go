@@ -131,6 +131,9 @@ func (b *Bridge) toSaid(ev world.Event) (Said, bool) {
 			to = wa.Actor
 		}
 		what = fmt.Sprintf("%s が %s に話しかけた（Nostr 経由、平文）\n本文: %s", who, to, ev.Message)
+		if ev.Image != "" {
+			what += "\n画像: " + ev.Image
+		}
 		// The town owner (Role is set only after the Nostr signature matched
 		// CRAB_NOSTR_OWNER) talks to the agent as its owner: core runs that
 		// turn with the owner's rights, as it would from any other gateway.

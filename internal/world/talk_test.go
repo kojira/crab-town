@@ -60,3 +60,35 @@ func TestWhereReportsZone(t *testing.T) {
 		t.Fatal("unknown actor has a whereabouts")
 	}
 }
+
+// Images are owner-only and must be https: the world refuses anyone else,
+// whatever their viewer showed them (issue #20).
+func TestTalkImageOwnerOnly(t *testing.T) {
+	w := NewDefault()
+	ch, cancel := w.Subscribe()
+	defer cancel()
+	const img = "https://blossom.example/0123abcd.png"
+	for _, role := range []string{RoleGuest, "", "resident"} {
+		if err := w.TalkImage("nostr:abc", role, "nostarou", "見て", img); err != ErrForbidden {
+			t.Fatalf("role %q image: %v", role, err)
+		}
+	}
+	select {
+	case ev := <-ch:
+		t.Fatalf("a refused image was emitted: %+v", ev)
+	default:
+	}
+	if err := w.TalkImage("nostr:own", RoleOwner, "nostarou", "", img); err != nil {
+		t.Fatalf("owner image without text: %v", err)
+	}
+	if ev := <-ch; ev.Type != EventTalk || ev.Image != img || ev.Role != RoleOwner || ev.Message != "" {
+		t.Fatalf("owner image event = %+v", ev)
+	}
+	for _, bad := range []string{"http://x.example/a.png", "javascript:alert(1)", "data:image/png;base64,AAAA",
+		"https://", "https://u:p@x.example/a.png", "https://x.example/a b.png", "https://x.example/\"onerror=\"x", "//x.example/a.png",
+		"https://x.example/" + strings.Repeat("a", MaxImageURL)} {
+		if err := w.TalkImage("nostr:own", RoleOwner, "nostarou", "", bad); err != ErrBadImage {
+			t.Fatalf("bad url %q: %v", bad, err)
+		}
+	}
+}
